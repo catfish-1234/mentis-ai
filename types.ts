@@ -30,6 +30,8 @@ export enum Subject {
   PHYSICS = 'Physics',
   CHEMISTRY = 'Chemistry',
   HISTORY = 'History',
+  BIOLOGY = 'Biology',
+  LITERATURE = 'Literature',
   CODING = 'Coding',
   GENERAL = 'General'
 }

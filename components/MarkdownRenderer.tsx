@@ -14,8 +14,9 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
         remarkPlugins={[remarkMath]}
         rehypePlugins={[rehypeKatex]}
         components={{
-            // Custom renderer for code blocks if needed, but default is usually fine
-            // We can add syntax highlighting here with react-syntax-highlighter if requested
+          // Ensure math is rendered in a span/div appropriately if needed
+          // But usually default is fine. 
+          // We adding a robust error boundary or fallback could be good here.
         }}
       >
         {content}

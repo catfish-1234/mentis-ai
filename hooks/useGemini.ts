@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Subject, Message, Role } from '../types';
 
 interface UseGeminiReturn {
@@ -17,11 +17,12 @@ export const useGemini = (): UseGeminiReturn => {
     setError(null);
 
     try {
-      if (!process.env.API_KEY) {
-        throw new Error("Gemini API Key is not configured.");
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("Gemini API Key is not configured (VITE_GEMINI_API_KEY missing).");
       }
 
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const genAI = new GoogleGenerativeAI(apiKey);
 
       // Transform internal Message type to Gemini history format
       const history = previousMessages.map(msg => ({
@@ -29,30 +30,30 @@ export const useGemini = (): UseGeminiReturn => {
         parts: [{ text: msg.content }]
       }));
 
-      const modelId = (subject === Subject.MATH || subject === Subject.PHYSICS || subject === Subject.CODING)
-        ? 'gemini-3-pro-preview' // Better reasoning for STEM
-        : 'gemini-3-flash-preview';
+      // Use clear model names
+      const modelId = "gemini-1.5-flash";
 
       let systemInstruction = `You are an expert ${subject} tutor.`;
       if ([Subject.MATH, Subject.PHYSICS, Subject.CHEMISTRY].includes(subject)) {
         systemInstruction += ` Use LaTeX for all math equations. Wrap block equations in $$ and inline in $. Provide clear, step-by-step explanations.`;
       }
 
-      const chat = ai.chats.create({
+      const model = genAI.getGenerativeModel({
         model: modelId,
-        config: {
-          systemInstruction: systemInstruction,
-          temperature: 0.7,
-        },
-        history: history
+        systemInstruction: systemInstruction
       });
 
-      const result = await chat.sendMessage({ message: text });
-      
-      // Artificial delay for better UX if response is too fast
-      // await new Promise(resolve => setTimeout(resolve, 500));
+      const chat = model.startChat({
+        history: history,
+        generationConfig: {
+          temperature: 0.7,
+        }
+      });
 
-      return result.text || "";
+      const result = await chat.sendMessage(text);
+      const response = await result.response;
+
+      return response.text();
 
     } catch (err: any) {
       console.error(err);

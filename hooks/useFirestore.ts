@@ -1,17 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  db, 
-  auth, 
-  ensureUser, 
-  collection, 
-  doc, 
-  onSnapshot, 
-  setDoc, 
-  orderBy, 
-  query, 
-  serverTimestamp,
-  addDoc
-} from '../firebase';
+import { db, collection, addDoc, query, orderBy, onSnapshot, ensureUser, serverTimestamp, auth, onAuthStateChanged } from '../firebase';
 import { Message, Role, Subject } from '../types';
 
 export const useFirestore = (subject: Subject) => {
@@ -21,9 +9,10 @@ export const useFirestore = (subject: Subject) => {
 
   // Initialize User
   useEffect(() => {
-    ensureUser().then(user => {
-      setUserId(user.uid);
+    const unsubscribe = onAuthStateChanged(auth, (user: any) => {
+      setUserId(user ? user.uid : null);
     });
+    return () => unsubscribe();
   }, []);
 
   // Listen to messages
@@ -43,7 +32,7 @@ export const useFirestore = (subject: Subject) => {
         // Convert Firestore Timestamp to Date for UI
         timestamp: d.data().timestamp?.toDate() || new Date()
       })) as Message[];
-      
+
       setMessages(msgs);
       setLoadingHistory(false);
     });
@@ -55,7 +44,7 @@ export const useFirestore = (subject: Subject) => {
     if (!userId) return;
 
     const messagesRef = collection(db, `users/${userId}/chats/${subject}/messages`);
-    
+
     await addDoc(messagesRef, {
       role,
       content: text,
@@ -63,11 +52,22 @@ export const useFirestore = (subject: Subject) => {
     });
   }, [userId, subject]);
 
-  // Clear chat for subject
-  const clearChat = useCallback(async () => {
-     // Implementation skipped for brevity (would require batch delete)
-     console.log("Clear chat requested (not implemented in this demo layer)");
+  const createNewChat = useCallback(async () => {
+    // In a real app, we might create a new session ID here.
+    // For this demo (one chat per subject), "New Chat" clears the current view.
+    // We achieve this locally by just setting messages to empty, 
+    // effectively "hiding" previous messages until reload or re-fetch.
+    // To truly clear, we'd need to implementing deletion or sessioning in the mock DB.
+    setMessages([]);
+
+    // Optional: If we wanted to "Archive" the chat, we'd just switch session IDs.
   }, []);
 
-  return { messages, addMessage, loadingHistory, userId };
+  // Clear chat for subject
+  const clearChat = useCallback(async () => {
+    // Implementation skipped for brevity (would require batch delete)
+    console.log("Clear chat requested (not implemented in this demo layer)");
+  }, []);
+
+  return { messages, addMessage, loadingHistory, userId, createNewChat };
 };
