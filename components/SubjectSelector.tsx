@@ -26,15 +26,15 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({ activeSubject,
     <div className="relative" ref={containerRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-medium rounded-lg transition-colors border-r border-slate-200 dark:border-slate-700 h-full sm:rounded-none sm:rounded-l-2xl sm:border-0"
+        className="flex items-center gap-2 px-3 py-2 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-200 text-sm font-medium rounded-lg transition-colors border-r border-zinc-200 dark:border-zinc-700 h-full sm:rounded-none sm:rounded-l-lg sm:border-0"
       >
-        <span className="material-symbols-outlined text-primary text-[20px]">functions</span>
+        <span className="material-symbols-outlined text-zinc-900 dark:text-white text-[20px]">functions</span>
         <span className="capitalize">{activeSubject}</span>
-        <span className={`material-symbols-outlined text-slate-400 text-[18px] transition-transform ${isOpen ? 'rotate-180' : ''}`}>expand_more</span>
+        <span className={`material-symbols-outlined text-zinc-400 text-[18px] transition-transform ${isOpen ? 'rotate-180' : ''}`}>expand_more</span>
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden z-50 animate-fade-in-up">
+        <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden z-50 animate-fade-in-up">
           {subjects.map((sub) => (
             <button
               key={sub}
@@ -44,8 +44,8 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({ activeSubject,
               }}
               className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors text-left
                 ${activeSubject === sub
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                  ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white font-medium'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
                 }`}
             >
               <span className="material-symbols-outlined text-[18px]">

@@ -42,20 +42,20 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
   if (isUser) {
     return (
       <div className="flex justify-end gap-3 animate-fade-in-up">
-        {/* User Bubble - Unchanged */}
+        {/* User Bubble */}
         <div className="flex flex-col items-end max-w-[85%] sm:max-w-[75%]">
-          <div className="bg-primary text-white px-5 py-3.5 rounded-2xl rounded-tr-sm shadow-md shadow-indigo-200/50 dark:shadow-none">
+          <div className="bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 px-5 py-3.5 rounded-lg rounded-tr-sm shadow-sm">
             <p className="text-[15px] sm:text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
           </div>
           {/* Attachment Rendering Stub if needed */}
           {message.attachment && (
-            <div className="mt-1 text-xs text-slate-400 flex items-center gap-1">
+            <div className="mt-1 text-xs text-zinc-400 flex items-center gap-1">
               <span className="material-symbols-outlined text-[14px]">attachment</span>
               {message.attachment.fileName || 'Attachment'}
             </div>
           )}
         </div>
-        <div className="size-8 rounded-full bg-indigo-200 border-2 border-white shadow-sm shrink-0 mt-auto hidden sm:flex items-center justify-center text-indigo-700 font-bold text-xs">
+        <div className="size-8 rounded-full bg-zinc-200 dark:bg-zinc-800 border-2 border-white dark:border-zinc-900 shadow-sm shrink-0 mt-auto hidden sm:flex items-center justify-center text-zinc-700 dark:text-zinc-300 font-bold text-xs">
           YOU
         </div>
       </div>
@@ -65,32 +65,32 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
   return (
     <div className="flex justify-start gap-4 animate-fade-in-up">
       <div className="shrink-0 mt-1">
-        <img alt="AI Avatar" className="size-8 object-contain" src="/logo.png" />
+        <img alt="MentisAI Avatar" className="size-8 object-contain" src="/logo.png" />
       </div>
       <div className="flex flex-col max-w-[90%] sm:max-w-[85%]">
-        <div className="bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-slate-700 px-6 py-5 rounded-2xl rounded-tl-sm shadow-sm space-y-4">
-          <div className="text-slate-800 dark:text-slate-200 text-[15px] sm:text-base leading-7">
+        <div className="bg-white dark:bg-black px-0 py-2 space-y-4">
+          <div className="text-zinc-800 dark:text-zinc-200 text-[15px] sm:text-base leading-7">
             <MarkdownRenderer content={message.content || ''} />
           </div>
-          <div className="flex items-center gap-2 mt-2 ml-1 border-t border-slate-100 dark:border-slate-800 pt-3">
+          <div className="flex items-center gap-2 mt-2 ml-0 pt-0">
             <button
               onClick={() => handleFeedback('up')}
-              className={`p-1 rounded transition-colors ${feedback === 'up' ? 'text-green-500 bg-green-50 dark:bg-green-900/20' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              className={`p-1 rounded transition-colors ${feedback === 'up' ? 'text-green-500 bg-green-50 dark:bg-green-900/20' : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
               title="Helpful"
             >
               <span className={`material-symbols-outlined text-[18px] ${feedback === 'up' ? 'fill-current' : ''}`}>thumb_up</span>
             </button>
             <button
               onClick={() => handleFeedback('down')}
-              className={`p-1 rounded transition-colors ${feedback === 'down' ? 'text-red-500 bg-red-50 dark:bg-red-900/20' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              className={`p-1 rounded transition-colors ${feedback === 'down' ? 'text-red-500 bg-red-50 dark:bg-red-900/20' : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
               title="Not Helpful"
             >
               <span className={`material-symbols-outlined text-[18px] ${feedback === 'down' ? 'fill-current' : ''}`}>thumb_down</span>
             </button>
-            <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
+            <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800 mx-1"></div>
             <button
               onClick={handleCopy}
-              className={`p-1 rounded transition-colors flex items-center gap-1 ${copied ? 'text-green-600 dark:text-green-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              className={`p-1 rounded transition-colors flex items-center gap-1 ${copied ? 'text-green-600 dark:text-green-400' : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
               title="Copy"
             >
               <span className="material-symbols-outlined text-[18px]">{copied ? 'check' : 'content_copy'}</span>

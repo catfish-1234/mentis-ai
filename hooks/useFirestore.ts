@@ -65,6 +65,9 @@ export const useFirestore = (subject: Subject) => {
     const messagesRef = collection(db, `users/${userId}/chats/${subject}/messages`);
     const q = query(messagesRef, orderBy('timestamp', 'asc'));
 
+    setLoadingHistory(true);
+    setMessages([]);
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const msgs = snapshot.docs.map(d => ({
         id: d.id,
