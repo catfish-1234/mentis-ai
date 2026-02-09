@@ -1,16 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Message, Role } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
 import { db, collection, addDoc, serverTimestamp } from '../firebase';
 
 interface ChatBubbleProps {
   message: Message;
+  onEdit?: () => void;
+  onRegenerate?: () => void;
 }
 
-export const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
+export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegenerate }) => {
   const isUser = message.role === Role.USER;
   const [feedback, setFeedback] = useState<'up' | 'down' | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Typewriter Logic
+  const isRecent = (new Date().getTime() - new Date(message.timestamp).getTime()) < 3000; // 3 seconds threshold
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const shouldAnimate = !isUser && isRecent && !isMobile;
+
+  const [displayedContent, setDisplayedContent] = useState(shouldAnimate ? '' : message.content);
+
+  useEffect(() => {
+    if (!shouldAnimate) {
+      setDisplayedContent(message.content);
+      return;
+    }
+
+    let currentIndex = 0;
+    const text = message.content;
+    const speed = 15; // ms per char
+
+    const intervalId = setInterval(() => {
+      if (currentIndex < text.length) {
+        setDisplayedContent(prev => prev + text[currentIndex]);
+        currentIndex++;
+      } else {
+        clearInterval(intervalId);
+      }
+    }, speed);
+
+    return () => clearInterval(intervalId);
+  }, [message.content, shouldAnimate]);
 
   const handleCopy = async () => {
     try {
@@ -41,9 +72,9 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
 
   if (isUser) {
     return (
-      <div className="flex justify-end gap-3 animate-fade-in-up">
+      <div className="flex justify-end gap-3 animate-fade-in-up group">
         {/* User Bubble */}
-        <div className="flex flex-col items-end max-w-[85%] sm:max-w-[75%]">
+        <div className="flex flex-col items-end max-w-[85%] sm:max-w-[75%] relative">
           <div className="bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 px-5 py-3.5 rounded-lg rounded-tr-sm shadow-sm">
             <p className="text-[15px] sm:text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
           </div>
@@ -53,6 +84,17 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
               <span className="material-symbols-outlined text-[14px]">attachment</span>
               {message.attachment.fileName || 'Attachment'}
             </div>
+          )}
+
+          {/* Edit Button - Visible on Hover */}
+          {onEdit && (
+            <button
+              onClick={onEdit}
+              className="absolute -left-8 top-1/2 -translate-y-1/2 p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-zinc-800 rounded-full shadow-sm border border-zinc-200 dark:border-zinc-700"
+              title="Edit Prompt"
+            >
+              <span className="material-symbols-outlined text-[16px]">edit</span>
+            </button>
           )}
         </div>
         <div className="size-8 rounded-full bg-zinc-200 dark:bg-zinc-800 border-2 border-white dark:border-zinc-900 shadow-sm shrink-0 mt-auto hidden sm:flex items-center justify-center text-zinc-700 dark:text-zinc-300 font-bold text-xs">
@@ -70,7 +112,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
       <div className="flex flex-col max-w-[90%] sm:max-w-[85%]">
         <div className="bg-white dark:bg-black px-0 py-2 space-y-4">
           <div className="text-zinc-800 dark:text-zinc-200 text-[15px] sm:text-base leading-7">
-            <MarkdownRenderer content={message.content || ''} />
+            <MarkdownRenderer content={displayedContent} />
           </div>
           <div className="flex items-center gap-2 mt-2 ml-0 pt-0">
             <button
@@ -96,6 +138,15 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message }) => {
               <span className="material-symbols-outlined text-[18px]">{copied ? 'check' : 'content_copy'}</span>
               {copied && <span className="text-xs font-medium">Copied</span>}
             </button>
+            {onRegenerate && (
+              <button
+                onClick={onRegenerate}
+                className="p-1 rounded transition-colors text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                title="Regenerate Response"
+              >
+                <span className="material-symbols-outlined text-[18px]">refresh</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

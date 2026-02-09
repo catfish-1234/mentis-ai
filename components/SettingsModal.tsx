@@ -15,16 +15,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
     const [isUpdating, setIsUpdating] = useState(false);
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'system');
     const [enterToSend, setEnterToSend] = useState(localStorage.getItem('enterToSend') !== 'false'); // Default true
+    const [directAnswers, setDirectAnswers] = useState(localStorage.getItem('directAnswers') === 'true'); // Default false
 
     useEffect(() => {
         localStorage.setItem('enterToSend', String(enterToSend));
-        // We need to trigger an update in App.tsx? 
-        // LocalStorage usage in React often requires an event or context to sync across components.
-        // For simplicity, we can dispatch a custom event or just assume App reads it on mount/focus.
-        // A better way is to pass a callback or use a Context. 
-        // Given existing code structure, dispatching storage event works for cross-tab, but same-tab needs manual dispatch.
         window.dispatchEvent(new Event('storage'));
     }, [enterToSend]);
+
+    useEffect(() => {
+        localStorage.setItem('directAnswers', String(directAnswers));
+        window.dispatchEvent(new Event('storage'));
+    }, [directAnswers]);
 
     // Sync displayName when user changes
     useEffect(() => {
@@ -141,7 +142,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
                             <div className="space-y-6">
                                 <div>
                                     <h3 className="text-lg font-medium text-zinc-900 dark:text-white mb-4">Chat Preferences</h3>
-                                    <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                                    <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 mb-4">
                                         <div>
                                             <div className="font-medium text-zinc-900 dark:text-white">Press Enter to Send</div>
                                             <div className="text-sm text-zinc-500">
@@ -153,6 +154,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
                                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${enterToSend ? 'bg-zinc-900' : 'bg-zinc-300 dark:bg-zinc-700'}`}
                                         >
                                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enterToSend ? 'translate-x-6' : 'translate-x-1'}`} />
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
+                                        <div>
+                                            <div className="font-medium text-zinc-900 dark:text-white">Direct Answers</div>
+                                            <div className="text-sm text-zinc-500">
+                                                {directAnswers ? 'Get straight answers instantly' : 'Socratic mode: Guides you step-by-step'}
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => setDirectAnswers(!directAnswers)}
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${directAnswers ? 'bg-zinc-900' : 'bg-zinc-300 dark:bg-zinc-700'}`}
+                                        >
+                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${directAnswers ? 'translate-x-6' : 'translate-x-1'}`} />
                                         </button>
                                     </div>
                                 </div>

@@ -28,6 +28,7 @@ export interface Attachment {
 export interface ChatSession {
   id: string;
   subject: Subject;
+  title?: string;
   createdAt: Date | Timestamp;
   messages: Message[];
   userId: string;
