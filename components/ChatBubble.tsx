@@ -23,17 +23,20 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
 
   useEffect(() => {
     if (!shouldAnimate) {
-      setDisplayedContent(message.content);
+      setDisplayedContent(message.content || '');
       return;
     }
 
     let currentIndex = 0;
-    const text = message.content;
+    const text = message.content || '';
     const speed = 15; // ms per char
+
+    // Reset displayed content when starting animation
+    setDisplayedContent('');
 
     const intervalId = setInterval(() => {
       if (currentIndex < text.length) {
-        setDisplayedContent(prev => prev + text[currentIndex]);
+        setDisplayedContent(text.substring(0, currentIndex + 1));
         currentIndex++;
       } else {
         clearInterval(intervalId);
@@ -72,7 +75,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
 
   if (isUser) {
     return (
-      <div className="flex justify-end gap-3 animate-fade-in-up group">
+      <div id={`msg-${message.id}`} className="flex justify-end gap-3 animate-fade-in-up group">
         {/* User Bubble */}
         <div className="flex flex-col items-end max-w-[85%] sm:max-w-[75%] relative">
           <div className="bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 px-5 py-3.5 rounded-lg rounded-tr-sm shadow-sm">
@@ -105,7 +108,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
   }
 
   return (
-    <div className="flex justify-start gap-4 animate-fade-in-up">
+    <div id={`msg-${message.id}`} className="flex justify-start gap-4 animate-fade-in-up">
       <div className="shrink-0 mt-1">
         <img alt="MentisAI Avatar" className="size-8 object-contain" src="/logo.png" />
       </div>

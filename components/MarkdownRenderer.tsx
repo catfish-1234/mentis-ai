@@ -19,7 +19,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
           // We adding a robust error boundary or fallback could be good here.
         }}
       >
-        {content}
+        {content || ''}
       </ReactMarkdown>
     </div>
   );

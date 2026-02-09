@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Subject, Role, Attachment } from './types';
 import { useChat, useChatList } from './hooks/useFirestore';
 import { useAI } from './hooks/useAI';
@@ -8,6 +8,9 @@ import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { ChatArea } from './components/ChatArea';
 import { InputArea } from './components/InputArea';
+import { ConversationTimeline } from './components/ConversationTimeline';
+import { RenameModal } from './components/RenameModal';
+import { DeleteModal } from './components/DeleteModal';
 import { signInWithPopup, signOut, auth, GoogleAuthProvider, onAuthStateChanged, signInAnonymously } from './firebase';
 
 function App() {
@@ -25,6 +28,13 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Desktop sidebar toggle
   const [searchQuery, setSearchQuery] = useState(''); // Chat search
   const [openMenuId, setOpenMenuId] = useState<string | null>(null); // For sidebar menus
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [renameChatId, setRenameChatId] = useState<string | null>(null);
+  const [renameChatTitle, setRenameChatTitle] = useState('');
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteChatId, setDeleteChatId] = useState<string | null>(null);
+  const [deleteChatTitle, setDeleteChatTitle] = useState('');
 
   // Listen for storage changes (SettingsModal updates)
   useEffect(() => {
@@ -33,6 +43,24 @@ function App() {
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  // Initialize theme on app load
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') || 'system';
+    const root = window.document.documentElement;
+    if (savedTheme === 'dark') {
+      root.classList.add('dark');
+    } else if (savedTheme === 'light') {
+      root.classList.remove('dark');
+    } else {
+      // System preference
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+    }
   }, []);
 
   const [socraticMode, setSocraticMode] = useState(false);
@@ -152,20 +180,38 @@ function App() {
     setIsMobileMenuOpen(false);
   };
 
-  const handleRenameChat = async (id: string) => {
-    const newName = prompt("Enter new chat name:");
-    if (newName && newName.trim()) {
-      await renameChat(id, newName.trim());
-    }
+  const handleRenameChat = (id: string) => {
+    const session = chatSessions.find(s => s.id === id);
+    setRenameChatId(id);
+    setRenameChatTitle(session?.title || session?.subject || '');
+    setRenameModalOpen(true);
     setOpenMenuId(null);
   };
 
-  const handleDeleteChat = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (confirm("Are you sure you want to delete this chat?")) {
-      await deleteChat(id);
-      if (activeChatId === id) setActiveChatId(null);
+  const confirmRename = async (newName: string) => {
+    if (renameChatId && newName.trim()) {
+      await renameChat(renameChatId, newName.trim());
     }
+    setRenameModalOpen(false);
+    setRenameChatId(null);
+  };
+
+  const handleDeleteChat = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const session = chatSessions.find(s => s.id === id);
+    setDeleteChatId(id);
+    setDeleteChatTitle(session?.title || session?.subject || '');
+    setDeleteModalOpen(true);
+    setOpenMenuId(null);
+  };
+
+  const confirmDelete = async () => {
+    if (deleteChatId) {
+      await deleteChat(deleteChatId);
+      if (activeChatId === deleteChatId) setActiveChatId(null);
+    }
+    setDeleteModalOpen(false);
+    setDeleteChatId(null);
   };
 
   const handleEdit = async (msg: any) => {
@@ -276,38 +322,52 @@ function App() {
   return (
     <>
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} user={user} />
+      <RenameModal
+        isOpen={renameModalOpen}
+        currentName={renameChatTitle}
+        onClose={() => setRenameModalOpen(false)}
+        onRename={confirmRename}
+      />
+      <DeleteModal
+        isOpen={deleteModalOpen}
+        title={deleteChatTitle}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+      />
 
       {/* TASK: RIGID SKELETON LAYOUT */}
-      <div className="flex h-screen w-screen bg-white text-zinc-900 font-sans overflow-hidden">
+      <div className="flex h-screen w-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans overflow-hidden">
 
-        {/* SIDEBAR: Fixed Width, Light Gray Background */}
-        <aside className="w-[260px] flex-shrink-0 h-full bg-zinc-50 border-r border-zinc-200 flex flex-col z-20 hidden md:flex">
-          <Sidebar
-            isSidebarOpen={isSidebarOpen}
-            isMobileMenuOpen={isMobileMenuOpen}
-            setIsMobileMenuOpen={setIsMobileMenuOpen}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            handleNewChat={handleNewChat}
-            loadingSessions={loadingSessions}
-            chatSessions={chatSessions}
-            activeChatId={activeChatId}
-            setActiveChatId={setActiveChatId}
-            openMenuId={openMenuId}
-            setOpenMenuId={setOpenMenuId}
-            handleRenameChat={handleRenameChat}
-            handleDeleteChat={handleDeleteChat}
-            user={user}
-            handleSignIn={handleSignIn}
-            setIsSettingsOpen={setIsSettingsOpen}
-            authError={authError}
-          />
-        </aside>
+        {/* SIDEBAR: Conditional rendering for proper toggle */}
+        {isSidebarOpen && (
+          <aside className="w-[260px] flex-shrink-0 h-full bg-zinc-50 border-r border-zinc-200 flex-col z-20 hidden md:flex">
+            <Sidebar
+              isSidebarOpen={isSidebarOpen}
+              isMobileMenuOpen={isMobileMenuOpen}
+              setIsMobileMenuOpen={setIsMobileMenuOpen}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              handleNewChat={handleNewChat}
+              loadingSessions={loadingSessions}
+              chatSessions={chatSessions}
+              activeChatId={activeChatId}
+              setActiveChatId={setActiveChatId}
+              openMenuId={openMenuId}
+              setOpenMenuId={setOpenMenuId}
+              handleRenameChat={handleRenameChat}
+              handleDeleteChat={handleDeleteChat}
+              user={user}
+              handleSignIn={handleSignIn}
+              setIsSettingsOpen={setIsSettingsOpen}
+              authError={authError}
+            />
+          </aside>
+        )}
 
         {/* MAIN: Flex Grow, White Background */}
         <main className="flex-1 flex flex-col h-full relative z-10">
           {/* Header */}
-          <header className="h-16 border-b border-zinc-100 flex items-center px-4 flex-shrink-0 bg-white/80 backdrop-blur-sm z-20">
+          <header className="h-16 border-b border-zinc-100 dark:border-zinc-800 flex items-center px-4 flex-shrink-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm z-20">
             <Header
               isMobileMenuOpen={isMobileMenuOpen}
               setIsMobileMenuOpen={setIsMobileMenuOpen}
@@ -315,11 +375,13 @@ function App() {
               setIsSidebarOpen={setIsSidebarOpen}
               socraticMode={socraticMode}
               setSocraticMode={setSocraticMode}
+              user={user}
+              handleNewChat={handleNewChat}
             />
           </header>
 
           {/* Scrollable Chat Area */}
-          <div className="flex-1 overflow-y-auto p-0 scroll-smooth">
+          <div className="flex-1 overflow-y-auto p-0 scroll-smooth relative">
             <ChatArea
               loadingHistory={loadingHistory}
               messages={messages}
@@ -330,6 +392,16 @@ function App() {
               isThinking={isThinking}
               statusMessage={statusMessage}
             />
+            {/* Conversation Timeline (Right side nodes) */}
+            {messages.length > 2 && (
+              <ConversationTimeline
+                messages={messages}
+                onNodeClick={(msgId) => {
+                  const el = document.getElementById(`msg-${msgId}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }}
+              />
+            )}
           </div>
 
           {/* Fixed Input Area */}
