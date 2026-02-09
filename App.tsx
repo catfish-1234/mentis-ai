@@ -35,6 +35,8 @@ function App() {
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
+  const [socraticMode, setSocraticMode] = useState(false);
+
   // Custom Hooks
   const { messages, addMessage, createChat, updateMessage, deleteMessage, deleteMessagesAfter, loadingHistory, userId } = useChat(activeChatId);
   const { sessions: chatSessions, loading: loadingSessions, deleteChat, renameChat } = useChatList();
@@ -241,7 +243,7 @@ function App() {
       // 3. Call AI with correct history
       const historyToSend = user?.isAnonymous ? [] : messages;
 
-      const response = await sendMessage(userText, activeSubject, historyToSend, attachment);
+      const response = await sendMessage(userText, activeSubject, historyToSend, attachment, socraticMode);
 
       // Clear attachment after send
       setAttachment(undefined);
@@ -305,12 +307,14 @@ function App() {
         {/* MAIN: Flex Grow, White Background */}
         <main className="flex-1 flex flex-col h-full relative z-10">
           {/* Header */}
-          <header className="h-14 border-b border-zinc-100 flex items-center px-4 flex-shrink-0">
+          <header className="h-16 border-b border-zinc-100 flex items-center px-4 flex-shrink-0 bg-white/80 backdrop-blur-sm z-20">
             <Header
               isMobileMenuOpen={isMobileMenuOpen}
               setIsMobileMenuOpen={setIsMobileMenuOpen}
               isSidebarOpen={isSidebarOpen}
               setIsSidebarOpen={setIsSidebarOpen}
+              socraticMode={socraticMode}
+              setSocraticMode={setSocraticMode}
             />
           </header>
 
@@ -349,6 +353,7 @@ function App() {
               handleFileSelect={handleFileSelect}
               user={user}
               messages={messages}
+              socraticMode={socraticMode}
             />
           </div>
         </main>

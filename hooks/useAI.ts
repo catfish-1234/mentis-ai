@@ -4,7 +4,7 @@ import Groq from "groq-sdk";
 import { Subject, Message, Role } from '../types';
 
 interface UseAIReturn {
-    sendMessage: (text: string, subject: Subject, previousMessages: Message[], attachment?: { content: string, type: 'image' | 'text', mimeType?: string }) => Promise<string>;
+    sendMessage: (text: string, subject: Subject, previousMessages: Message[], attachment?: { content: string, type: 'image' | 'text', mimeType?: string }, socraticMode?: boolean) => Promise<string>;
     isLoading: boolean;
     error: string | null;
     statusMessage: string | null;
@@ -15,21 +15,22 @@ export const useAI = (): UseAIReturn => {
     const [error, setError] = useState<string | null>(null);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-    const sendMessage = useCallback(async (text: string, subject: Subject, previousMessages: Message[], attachment?: { content: string, type: 'image' | 'text', mimeType?: string }) => {
+    const sendMessage = useCallback(async (text: string, subject: Subject, previousMessages: Message[], attachment?: { content: string, type: 'image' | 'text', mimeType?: string }, socraticMode: boolean = false) => {
         setIsLoading(true);
         setStatusMessage("Thinking...");
         setError(null);
 
         try {
-            // Check Settings for Mode
-            const directMode = localStorage.getItem('directAnswers') === 'true';
+            // Check Settings for Mode (Legacy) or Socratic Toggle (Priority)
+            const directMode = localStorage.getItem('directAnswers') === 'true'; // Legacy setting
+            const isSocratic = socraticMode; // Toggle override
 
             // Construct System Prompt
-            let basePrompt = `You are an expert Socratic Tutor specialized in ${subject}. `;
-            if (directMode) {
+            let basePrompt = `You are an expert Tutor specialized in ${subject}. `;
+            if (!isSocratic) {
                 basePrompt += `You are a direct tutor. Provide the answer immediately with a concise explanation. Do not beat around the bush.`;
             } else {
-                basePrompt += `Do NOT give the answer immediately. Guide the user step-by-step with leading questions to help them solve it themselves. Only provide the full answer if the user explicitly asks for it. Be patient and encouraging.`;
+                basePrompt += `You are a Socratic Tutor. Do NOT give the answer immediately. Guide the user step-by-step with leading questions to help them solve it themselves. Only provide the full answer if the user explicitly asks for it. Be patient and encouraging.`;
             }
 
             // Subject Specifics

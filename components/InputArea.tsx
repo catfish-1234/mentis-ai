@@ -21,6 +21,7 @@ interface InputAreaProps {
     handleFileSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
     user: any;
     messages: Message[];
+    socraticMode: boolean;
 }
 
 export const InputArea: React.FC<InputAreaProps> = ({
@@ -41,26 +42,14 @@ export const InputArea: React.FC<InputAreaProps> = ({
     isThinking,
     handleFileSelect,
     user,
-    messages
+    messages,
+    socraticMode
 }) => {
     return (
         <div className="max-w-3xl mx-auto w-full">
-            <div className={`bg-white dark:bg-zinc-900 border rounded-lg shadow-sm focus-within:ring-2 focus-within:ring-zinc-500/20 focus-within:border-zinc-500 transition-all duration-200 flex flex-col sm:flex-row overflow-visible relative ${!user?.isAnonymous ? 'border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.15)] ring-1 ring-indigo-500/20' : 'border-zinc-300 dark:border-zinc-700'}`}>
-                {/* Prompt History Bubbles */}
-                {sessionPrompts.length > 0 && (
-                    <div className="absolute top-[-36px] right-0 flex justify-end gap-2 overflow-x-auto max-w-full pb-2 no-scrollbar px-1">
-                        {sessionPrompts.slice(-3).map((p, i) => (
-                            <button
-                                key={i}
-                                onClick={() => setInput(p)}
-                                className="bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-xs px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-700 whitespace-nowrap max-w-[150px] truncate transition-colors animate-fade-in-up"
-                                style={{ animationDelay: `${i * 100}ms` }}
-                            >
-                                {p}
-                            </button>
-                        ))}
-                    </div>
-                )}
+            <div className={`bg-white dark:bg-zinc-900 border rounded-xl shadow-sm focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all duration-200 flex flex-col sm:flex-row overflow-visible relative ${!user?.isAnonymous ? 'border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.15)]' : 'border-zinc-300 dark:border-zinc-700'}`}>
+
+                {/* REMOVED: Session Prompts Bubbles (User Request) */}
 
                 <SubjectSelector activeSubject={activeSubject} onSelect={setActiveSubject} />
 

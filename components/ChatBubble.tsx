@@ -138,16 +138,18 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
               <span className="material-symbols-outlined text-[18px]">{copied ? 'check' : 'content_copy'}</span>
               {copied && <span className="text-xs font-medium">Copied</span>}
             </button>
-            {onRegenerate && (
+          </div>
+          {onRegenerate && (
+            <div className="flex justify-start mt-2">
               <button
                 onClick={onRegenerate}
-                className="p-1 rounded transition-colors text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                title="Regenerate Response"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/50 dark:hover:bg-zinc-800 rounded-full border border-zinc-200 dark:border-zinc-800 transition-colors"
               >
-                <span className="material-symbols-outlined text-[18px]">refresh</span>
+                <span className="material-symbols-outlined text-[14px]">refresh</span>
+                Regenerate Response
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
