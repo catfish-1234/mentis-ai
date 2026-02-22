@@ -24,6 +24,8 @@ import { DeleteModal } from './components/DeleteModal';
 import { ToolsPage } from './pages/ToolsPage';
 import { NotesHubPage } from './pages/NotesHubPage';
 import { signInWithPopup, signOut, auth, GoogleAuthProvider, onAuthStateChanged, signInAnonymously } from './firebase';
+import { HelmetProvider } from 'react-helmet-async';
+import { SEO } from './components/SEO';
 
 function AppContent() {
   const navigate = useNavigate();
@@ -53,6 +55,18 @@ function AppContent() {
 
   const [socraticMode, setSocraticMode] = useState(false);
   const [reasoningMode, setReasoningMode] = useState(false);
+
+  // Search Engine Optimize dynamic route tracking
+  const isSolveRoute = location.pathname.startsWith('/solve/');
+  const solveTopicRaw = isSolveRoute ? location.pathname.replace('/solve/', '') : null;
+  const formattedTopic = solveTopicRaw ? decodeURIComponent(solveTopicRaw).replace(/[-_]/g, ' ') : '';
+  const displayTopic = formattedTopic ? formattedTopic.charAt(0).toUpperCase() + formattedTopic.slice(1) : '';
+
+  useEffect(() => {
+    if (solveTopicRaw) {
+      setInput(`Explain ${formattedTopic} to me`);
+    }
+  }, [solveTopicRaw, formattedTopic]);
 
   useEffect(() => {
     const handleStorage = () => {
@@ -362,6 +376,11 @@ function AppContent() {
             <Route path="/notes" element={<NotesHubPage />} />
             <Route path="*" element={
               <>
+                <SEO
+                  title={solveTopicRaw ? `Learn ${displayTopic}` : "Chat"}
+                  description={solveTopicRaw ? `Get AI-powered explanations for ${displayTopic} on MentisAI. Join to create quizzes and flashcards!` : "Chat with MentisAI, your AI learning companion."}
+                  image="/og-image.png"
+                />
                 {/* Scrollable Chat Messages */}
                 <div className="flex-1 overflow-y-auto p-0 scroll-smooth relative">
                   <ChatArea
@@ -386,7 +405,18 @@ function AppContent() {
                 </div>
 
                 {/* Fixed Input Area */}
-                <div className="flex-shrink-0 p-4 w-full max-w-4xl mx-auto">
+                <div className="flex-shrink-0 p-4 w-full max-w-4xl mx-auto flex flex-col gap-3">
+                  {!isSignedIn && solveTopicRaw && (
+                    <div className="bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800/60 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between shadow-sm gap-3">
+                      <span className="text-sm text-indigo-900 dark:text-indigo-100 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[18px] text-indigo-600 dark:text-indigo-400">school</span>
+                        <span>Learning about <strong className="font-semibold">{displayTopic}</strong>? Join MentisAI to save this chat, generate flashcards, and take quizzes!</span>
+                      </span>
+                      <button onClick={handleSignIn} className="text-xs font-bold bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex-shrink-0 shadow-md">
+                        Sign Up Free
+                      </button>
+                    </div>
+                  )}
                   <InputArea
                     sessionPrompts={sessionPrompts}
                     setInput={setInput}
@@ -446,9 +476,11 @@ function AppContent() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <AppContent />
-    </BrowserRouter>
+    <HelmetProvider>
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+    </HelmetProvider>
   );
 }
 

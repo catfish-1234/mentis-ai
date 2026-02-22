@@ -9,6 +9,7 @@ import { useNotes, NoteSourceType } from '../hooks/useNotes';
 import { useStudyTools, FlashcardItem, QuizQuestion } from '../hooks/useStudyTools';
 import { useAI } from '../hooks/useAI';
 import { Subject } from '../types';
+import { SEO } from '../components/SEO';
 import { AudioRecorder } from '../components/AudioRecorder';
 import { ContentImporter } from '../components/ContentImporter';
 import { NotesEditor } from '../components/NotesEditor';
@@ -150,6 +151,7 @@ ${activeNote.content}`;
     if (view === 'flashcards' && activeFlashcards) {
         return (
             <div className="flex-1 overflow-y-auto p-6">
+                <SEO title={`Flashcards: ${activeFlashcards.title}`} description={`Review flashcards for ${activeFlashcards.title} on MentisAI.`} />
                 <FlashcardDeck
                     title={activeFlashcards.title}
                     cards={activeFlashcards.cards}
@@ -162,6 +164,7 @@ ${activeNote.content}`;
     if (view === 'quiz' && activeQuiz) {
         return (
             <div className="flex-1 overflow-y-auto p-6">
+                <SEO title={`Quiz: ${activeQuiz.title}`} description={`Take the quiz for ${activeQuiz.title} on MentisAI.`} />
                 <QuizPlayer
                     title={activeQuiz.title}
                     questions={activeQuiz.questions}
@@ -175,6 +178,7 @@ ${activeNote.content}`;
     if (view === 'podcast' && podcastScript) {
         return (
             <div className="flex-1 overflow-y-auto p-6">
+                <SEO title="Podcast Player" description="Listen to AI-generated educational podcasts on MentisAI." />
                 <div className="max-w-3xl mx-auto">
                     <PodcastPlayer
                         title={activeNote?.title || 'AI Podcast'}
@@ -189,6 +193,7 @@ ${activeNote.content}`;
     if (view === 'view-note' && activeNote) {
         return (
             <div className="flex-1 overflow-y-auto p-6">
+                <SEO title={activeNote.title} description={`Read notes about ${activeNote.title} on MentisAI.`} />
                 <div className="max-w-3xl mx-auto">
                     <button onClick={() => { setView('list'); setActiveNote(null); }} className="flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 mb-4">
                         <span className="material-symbols-outlined text-[18px]">arrow_back</span>
@@ -218,6 +223,7 @@ ${activeNote.content}`;
     if (view === 'create') {
         return (
             <div className="flex-1 overflow-y-auto p-6">
+                <SEO title="Create Notes" description="Create AI-powered notes by uploading audio, PDFs, or YouTube links." />
                 <div className="max-w-3xl mx-auto">
                     <button onClick={() => setView('list')} className="flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 mb-6">
                         <span className="material-symbols-outlined text-[18px]">arrow_back</span>
@@ -247,6 +253,7 @@ ${activeNote.content}`;
     // Main list view
     return (
         <div className="flex-1 overflow-y-auto p-6">
+            <SEO title="Notes Hub" description="Create AI-powered notes from audio, PDFs, YouTube, and more with MentisAI." />
             <div className="max-w-4xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-8">

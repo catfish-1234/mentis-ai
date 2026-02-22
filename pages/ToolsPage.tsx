@@ -10,6 +10,7 @@ import { useAI } from '../hooks/useAI';
 import { FlashcardDeck } from '../components/FlashcardDeck';
 import { QuizPlayer } from '../components/QuizPlayer';
 import { Subject } from '../types';
+import { SEO } from '../components/SEO';
 
 type ToolView = 'list' | 'flashcards' | 'quiz' | 'create-flashcards' | 'create-quiz';
 
@@ -87,6 +88,7 @@ correctIndex is 0-based. Make exactly 5 questions with 4 options each. No markdo
     if (view === 'flashcards' && activeFlashcards) {
         return (
             <div className="flex-1 overflow-y-auto p-6">
+                <SEO title={`Flashcards: ${activeFlashcards.title}`} description={`Review flashcards for ${activeFlashcards.title} on MentisAI.`} />
                 <FlashcardDeck
                     title={activeFlashcards.title}
                     cards={activeFlashcards.cards}
@@ -99,6 +101,7 @@ correctIndex is 0-based. Make exactly 5 questions with 4 options each. No markdo
     if (view === 'quiz' && activeQuiz) {
         return (
             <div className="flex-1 overflow-y-auto p-6">
+                <SEO title={`Quiz: ${activeQuiz.title}`} description={`Take the quiz for ${activeQuiz.title} on MentisAI.`} />
                 <QuizPlayer
                     title={activeQuiz.title}
                     questions={activeQuiz.questions}
@@ -113,6 +116,7 @@ correctIndex is 0-based. Make exactly 5 questions with 4 options each. No markdo
 
     return (
         <div className="flex-1 overflow-y-auto p-6">
+            <SEO title="AI Study Tools" description="Create and review flashcards, quizzes, and other AI study tools with MentisAI." />
             <div className="max-w-4xl mx-auto">
                 {/* Page header */}
                 <div className="mb-8">
@@ -238,7 +242,7 @@ correctIndex is 0-based. Make exactly 5 questions with 4 options each. No markdo
                                             <p className="text-xs text-zinc-500 mt-1">{quiz.totalQuestions} questions</p>
                                             {quiz.score !== undefined && (
                                                 <p className={`text-xs font-medium mt-1 ${(quiz.score / quiz.totalQuestions) >= 0.8 ? 'text-emerald-500' :
-                                                        (quiz.score / quiz.totalQuestions) >= 0.6 ? 'text-yellow-500' : 'text-red-500'
+                                                    (quiz.score / quiz.totalQuestions) >= 0.6 ? 'text-yellow-500' : 'text-red-500'
                                                     }`}>
                                                     Score: {quiz.score}/{quiz.totalQuestions} ({Math.round((quiz.score / quiz.totalQuestions) * 100)}%)
                                                 </p>
