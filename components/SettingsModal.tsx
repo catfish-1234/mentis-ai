@@ -1,40 +1,21 @@
 /**
  * @module SettingsModal
  *
- * Full-featured settings panel displayed as a modal overlay. Contains
- * four tabs organized via a vertical sidebar navigation:
- *
- * - **General** — Chat preferences (Enter-to-Send toggle, Direct Answers toggle).
- * - **Profile** — Display name editing and avatar upload.
- * - **Appearance** — Theme selector (Light / Dark / System).
- * - **Account** — Danger zone with sign-out button.
- *
- * Settings are persisted to `localStorage` and broadcast via
- * `window.dispatchEvent(new Event('storage'))` so the parent App
- * component can react to changes in real time.
- *
- * Avatar uploads encode the image as a base64 data URI and store it
- * directly in the Firebase Auth user profile (`photoURL`).
+ * Full-featured settings panel with tabs: General, Profile, Appearance,
+ * Language, and Account.
  */
 
 import React, { useState, useEffect } from 'react';
 import { auth, signOut, updateProfile } from '../firebase';
+import { SUPPORTED_LANGUAGES, getStoredLanguage, setStoredLanguage, LanguageCode } from '../i18n';
 
-/**
- * Props for the {@link SettingsModal} component.
- *
- * @property isOpen  - Controls modal visibility.
- * @property onClose - Called when the user dismisses the modal.
- * @property user    - Firebase Auth user object.
- */
 interface SettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
     user: any;
 }
 
-/** Available settings tabs. */
-type Tab = 'general' | 'profile' | 'appearance' | 'account';
+type Tab = 'general' | 'profile' | 'appearance' | 'language' | 'account';
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user }) => {
     const [activeTab, setActiveTab] = useState<Tab>('general');
@@ -43,25 +24,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'system');
     const [enterToSend, setEnterToSend] = useState(localStorage.getItem('enterToSend') !== 'false');
     const [directAnswers, setDirectAnswers] = useState(localStorage.getItem('directAnswers') === 'true');
+    const [language, setLanguage] = useState<LanguageCode>(getStoredLanguage());
 
-    /** Persist Enter-to-Send preference and notify listeners. */
     useEffect(() => {
         localStorage.setItem('enterToSend', String(enterToSend));
         window.dispatchEvent(new Event('storage'));
     }, [enterToSend]);
 
-    /** Persist Direct Answers preference and notify listeners. */
     useEffect(() => {
         localStorage.setItem('directAnswers', String(directAnswers));
         window.dispatchEvent(new Event('storage'));
     }, [directAnswers]);
 
-    /** Sync display name state when the user prop changes. */
     useEffect(() => {
         if (user) setDisplayName(user.displayName || '');
     }, [user]);
 
-    /** Apply and persist the selected theme. */
     useEffect(() => {
         const root = window.document.documentElement;
         if (theme === 'dark') {
@@ -78,14 +56,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
         localStorage.setItem('theme', theme);
     }, [theme]);
 
-    /** Save the updated display name to the Firebase Auth profile. */
+    const handleLanguageChange = (code: LanguageCode) => {
+        setLanguage(code);
+        setStoredLanguage(code);
+    };
+
     const handleSaveProfile = async () => {
         if (!user) return;
         setIsUpdating(true);
         try {
-            await updateProfile(user, {
-                displayName: displayName
-            });
+            await updateProfile(user, { displayName });
         } catch (e) {
             console.error(e);
             alert("Failed to update profile");
@@ -94,10 +74,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
         }
     };
 
-    /**
-     * Handle avatar file selection: reads the image as a base64 data URI
-     * and stores it in the Firebase Auth profile's `photoURL` field.
-     */
     const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file && user) {
@@ -105,9 +81,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
             reader.onload = async (event) => {
                 if (event.target?.result) {
                     try {
-                        await updateProfile(user, {
-                            photoURL: event.target.result as string
-                        });
+                        await updateProfile(user, { photoURL: event.target.result as string });
                     } catch (error) {
                         console.error("Failed to update avatar", error);
                     }
@@ -119,11 +93,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
 
     if (!isOpen) return null;
 
+    const tabs: { id: Tab; icon: string; label: string }[] = [
+        { id: 'general', icon: 'tune', label: 'General' },
+        { id: 'profile', icon: 'person', label: 'Profile' },
+        { id: 'appearance', icon: 'palette', label: 'Appearance' },
+        { id: 'language', icon: 'translate', label: 'Language' },
+        { id: 'account', icon: 'manage_accounts', label: 'Account' },
+    ];
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
             <div className="bg-white dark:bg-zinc-950 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
 
-                {/* Modal header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
                     <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Settings</h2>
                     <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-full transition-colors">
@@ -132,45 +113,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
                 </div>
 
                 <div className="flex flex-1 overflow-hidden">
-                    {/* Tab navigation sidebar */}
                     <div className="w-48 bg-zinc-50 dark:bg-zinc-900/50 border-r border-zinc-200 dark:border-zinc-800 p-4 space-y-2">
-                        <button
-                            onClick={() => setActiveTab('general')}
-                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'general' ? 'bg-zinc-900 text-white shadow-sm' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800'}`}
-                        >
-                            <span className="material-symbols-outlined text-[20px]">tune</span>
-                            General
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('profile')}
-                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'profile' ? 'bg-zinc-900 text-white shadow-sm' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800'}`}
-                        >
-                            <span className="material-symbols-outlined text-[20px]">person</span>
-                            Profile
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('appearance')}
-                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'appearance' ? 'bg-zinc-900 text-white shadow-sm' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800'}`}
-                        >
-                            <span className="material-symbols-outlined text-[20px]">palette</span>
-                            Appearance
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('account')}
-                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'account' ? 'bg-zinc-900 text-white shadow-sm' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800'}`}
-                        >
-                            <span className="material-symbols-outlined text-[20px]">manage_accounts</span>
-                            Account
-                        </button>
+                        {tabs.map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === tab.id ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 shadow-sm' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800'}`}
+                            >
+                                <span className="material-symbols-outlined text-[20px]">{tab.icon}</span>
+                                {tab.label}
+                            </button>
+                        ))}
                     </div>
 
-                    {/* Tab content area */}
                     <div className="flex-1 p-6 overflow-y-auto bg-white dark:bg-zinc-950">
                         {activeTab === 'general' && (
                             <div className="space-y-6">
                                 <div>
                                     <h3 className="text-lg font-medium text-zinc-900 dark:text-white mb-4">Chat Preferences</h3>
-                                    {/* Enter-to-Send toggle */}
                                     <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 mb-4">
                                         <div>
                                             <div className="font-medium text-zinc-900 dark:text-white">Press Enter to Send</div>
@@ -185,7 +145,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
                                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enterToSend ? 'translate-x-6' : 'translate-x-1'}`} />
                                         </button>
                                     </div>
-                                    {/* Direct Answers toggle */}
                                     <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
                                         <div>
                                             <div className="font-medium text-zinc-900 dark:text-white">Direct Answers</div>
@@ -206,7 +165,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
 
                         {activeTab === 'profile' && (
                             <div className="space-y-6">
-                                {/* Avatar and user info */}
                                 <div className="flex items-center gap-4">
                                     <div className="relative group cursor-pointer">
                                         <div className="size-20 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 text-2xl font-bold border-2 border-zinc-200 overflow-hidden">
@@ -222,8 +180,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
                                         <p className="text-zinc-500 text-sm">{user?.email || 'No email linked'}</p>
                                     </div>
                                 </div>
-
-                                {/* Display name editor */}
                                 <div>
                                     <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Display Name</label>
                                     <input
@@ -235,11 +191,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
                                     />
                                 </div>
                                 <div className="flex justify-end">
-                                    <button
-                                        onClick={handleSaveProfile}
-                                        disabled={isUpdating}
-                                        className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
-                                    >
+                                    <button onClick={handleSaveProfile} disabled={isUpdating} className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg font-medium transition-colors disabled:opacity-50">
                                         {isUpdating ? 'Saving...' : 'Save Changes'}
                                     </button>
                                 </div>
@@ -263,6 +215,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
                                             <span className="material-symbols-outlined text-3xl">contrast</span>
                                             <span className="text-sm font-medium">System</span>
                                         </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'language' && (
+                            <div className="space-y-6">
+                                <div>
+                                    <h3 className="text-lg font-medium text-zinc-900 dark:text-white mb-2">AI Response Language</h3>
+                                    <p className="text-sm text-zinc-500 mb-4">Choose the language the AI will use to respond to your questions.</p>
+                                    <div className="grid grid-cols-2 gap-2 max-h-[400px] overflow-y-auto">
+                                        {SUPPORTED_LANGUAGES.map(lang => (
+                                            <button
+                                                key={lang.code}
+                                                onClick={() => handleLanguageChange(lang.code)}
+                                                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${language === lang.code
+                                                        ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-2 border-indigo-500 shadow-sm'
+                                                        : 'bg-zinc-50 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-2 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700'
+                                                    }`}
+                                            >
+                                                {language === lang.code && (
+                                                    <span className="material-symbols-outlined text-[18px] text-indigo-500">check_circle</span>
+                                                )}
+                                                <span>{lang.name}</span>
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
                             </div>

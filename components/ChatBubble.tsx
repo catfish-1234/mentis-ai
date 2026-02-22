@@ -1,16 +1,8 @@
 /**
  * @module ChatBubble
  *
- * Renders a single chat message bubble. User messages appear right-aligned
- * with a "YOU" badge; AI messages appear left-aligned with the MentisAI
- * avatar and include action buttons (thumbs up/down, copy, regenerate).
- *
- * AI responses feature a typewriter animation for recently received
- * messages (within a 3-second window), which is disabled on mobile
- * for performance.
- *
- * Feedback (thumbs up/down) is persisted to a top-level `feedback`
- * Firestore collection for analytics.
+ * Renders a single chat message bubble. AI responses feature typewriter
+ * animation and collapsible <thinking> blocks for reasoning mode.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -18,36 +10,27 @@ import { Message, Role } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
 import { db, collection, addDoc, serverTimestamp } from '../firebase';
 
-/**
- * Props for the {@link ChatBubble} component.
- *
- * @property message      - The message data to render.
- * @property onEdit       - Callback to edit this message (user messages only).
- * @property onRegenerate - Callback to regenerate this response (AI messages only).
- */
 interface ChatBubbleProps {
   message: Message;
   onEdit?: () => void;
   onRegenerate?: () => void;
 }
 
-/**
- * Renders a styled message bubble with role-specific layout, actions,
- * and an optional typewriter reveal animation for AI responses.
- */
 export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegenerate }) => {
   const isUser = message.role === Role.USER;
   const [feedback, setFeedback] = useState<'up' | 'down' | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showThinking, setShowThinking] = useState(false);
 
-  // Typewriter animation: only for AI messages received within the last 3 seconds, and not on mobile
-  const isRecent = (new Date().getTime() - new Date(message.timestamp).getTime()) < 3000;
+  const messageTime = typeof (message.timestamp as any)?.toDate === 'function'
+    ? (message.timestamp as any).toDate()
+    : new Date(message.timestamp as any);
+  const isRecent = (new Date().getTime() - messageTime.getTime()) < 3000;
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const shouldAnimate = !isUser && isRecent && !isMobile;
 
   const [displayedContent, setDisplayedContent] = useState(shouldAnimate ? '' : message.content);
 
-  /** Drive the typewriter effect by revealing one character at a time. */
   useEffect(() => {
     if (!shouldAnimate) {
       setDisplayedContent(message.content || '');
@@ -57,7 +40,6 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
     let currentIndex = 0;
     const text = message.content || '';
     const speed = 15;
-
     setDisplayedContent('');
 
     const intervalId = setInterval(() => {
@@ -72,7 +54,28 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
     return () => clearInterval(intervalId);
   }, [message.content, shouldAnimate]);
 
-  /** Copy the full message content to the clipboard. */
+  // Parse content for <thinking> blocks
+  const parseThinkingBlocks = (content: string) => {
+    const thinkingRegex = /<thinking>([\s\S]*?)<\/thinking>/g;
+    const parts: { type: 'text' | 'thinking'; content: string }[] = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = thinkingRegex.exec(content)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push({ type: 'text', content: content.slice(lastIndex, match.index).trim() });
+      }
+      parts.push({ type: 'thinking', content: match[1].trim() });
+      lastIndex = match.index + match[0].length;
+    }
+
+    if (lastIndex < content.length) {
+      parts.push({ type: 'text', content: content.slice(lastIndex).trim() });
+    }
+
+    return parts.filter(p => p.content.length > 0);
+  };
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(message.content);
@@ -83,19 +86,14 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
     }
   };
 
-  /**
-   * Submit user feedback (thumbs up/down) to the Firestore `feedback` collection.
-   * Prevents duplicate submissions for the same rating.
-   */
   const handleFeedback = async (rating: 'up' | 'down') => {
     if (feedback === rating) return;
     setFeedback(rating);
-
     try {
       await addDoc(collection(db, 'feedback'), {
         messageId: message.id || 'unknown',
         content: message.content,
-        rating: rating,
+        rating,
         timestamp: serverTimestamp()
       });
     } catch (e) {
@@ -117,8 +115,6 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
               {message.attachment.fileName || 'Attachment'}
             </div>
           )}
-
-          {/* Edit button — revealed on hover */}
           {onEdit && (
             <button
               onClick={onEdit}
@@ -137,6 +133,9 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
   }
 
   /* ── AI Response Bubble ── */
+  const contentParts = parseThinkingBlocks(displayedContent);
+  const hasThinking = contentParts.some(p => p.type === 'thinking');
+
   return (
     <div id={`msg-${message.id}`} className="flex justify-start gap-4 animate-fade-in-up">
       <div className="shrink-0 mt-1">
@@ -145,9 +144,39 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
       <div className="flex flex-col max-w-[90%] sm:max-w-[85%]">
         <div className="bg-white dark:bg-black px-0 py-2 space-y-4">
           <div className="text-zinc-800 dark:text-zinc-200 text-[15px] sm:text-base leading-7">
-            <MarkdownRenderer content={displayedContent} />
+            {hasThinking ? (
+              <div className="space-y-3">
+                {contentParts.map((part, i) => {
+                  if (part.type === 'thinking') {
+                    return (
+                      <div key={i} className="border border-violet-200 dark:border-violet-800 rounded-xl overflow-hidden">
+                        <button
+                          onClick={() => setShowThinking(!showThinking)}
+                          className="w-full flex items-center gap-2 px-4 py-2.5 bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors text-left"
+                        >
+                          <span className="material-symbols-outlined text-[18px] text-violet-500 transition-transform" style={{ transform: showThinking ? 'rotate(90deg)' : 'rotate(0deg)' }}>
+                            chevron_right
+                          </span>
+                          <span className="text-xs font-semibold text-violet-600 dark:text-violet-400 uppercase tracking-wider">
+                            🧠 Reasoning Process
+                          </span>
+                        </button>
+                        {showThinking && (
+                          <div className="px-4 py-3 bg-violet-50/50 dark:bg-violet-900/10 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed border-t border-violet-200 dark:border-violet-800">
+                            <MarkdownRenderer content={part.content} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  return <MarkdownRenderer key={i} content={part.content} />;
+                })}
+              </div>
+            ) : (
+              <MarkdownRenderer content={displayedContent} />
+            )}
           </div>
-          {/* Action bar: feedback, copy */}
+          {/* Action bar */}
           <div className="flex items-center gap-2 mt-2 ml-0 pt-0">
             <button
               onClick={() => handleFeedback('up')}
@@ -173,7 +202,6 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
               {copied && <span className="text-xs font-medium">Copied</span>}
             </button>
           </div>
-          {/* Regenerate button — shown only on the latest AI response */}
           {onRegenerate && (
             <div className="flex justify-start mt-2">
               <button

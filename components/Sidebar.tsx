@@ -1,47 +1,15 @@
 /**
  * @module Sidebar
  *
- * Navigation sidebar displaying the user's chat history, grouped by date
- * (Today, Yesterday, Last 7 Days, Older). Also contains:
- *
- * - MentisAI logo/branding (clickable → new chat).
- * - Search input for filtering chats by title or subject.
- * - "New Chat" button.
- * - Per-chat context menu with Rename and Delete options.
- * - User profile footer (sign-in button for anonymous, profile card for signed-in).
- *
- * Rendered in two locations in the DOM:
- * 1. Inside a fixed `<aside>` on desktop (toggle via sidebar button).
- * 2. As a full-screen off-canvas drawer on mobile (toggle via hamburger).
- *
- * Uses a `groupSessionsByDate` helper to bucket sessions by recency.
+ * Navigation sidebar with page navigation links (Chat, AI Tools, Notes Hub),
+ * chat history grouped by date, and user profile footer.
+ * Hidden for anonymous users (they see a floating sign-in button instead).
  */
 
 import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Subject, ChatSession } from '../types';
 
-/**
- * Props for the {@link Sidebar} component.
- *
- * @property isSidebarOpen      - Whether the desktop sidebar is visible.
- * @property isMobileMenuOpen   - Whether the mobile drawer is open.
- * @property setIsMobileMenuOpen - Toggle the mobile drawer.
- * @property searchQuery        - Current chat search filter text.
- * @property setSearchQuery     - Update the search filter.
- * @property handleNewChat      - Navigate to the new-chat state.
- * @property loadingSessions    - Whether chat sessions are being fetched.
- * @property chatSessions       - Array of all user chat sessions.
- * @property activeChatId       - Currently selected chat ID.
- * @property setActiveChatId    - Select a chat by ID.
- * @property openMenuId         - ID of the chat whose context menu is open.
- * @property setOpenMenuId      - Open/close a chat's context menu.
- * @property handleRenameChat   - Open the rename modal for a chat.
- * @property handleDeleteChat   - Open the delete modal for a chat.
- * @property user               - Firebase Auth user object.
- * @property handleSignIn       - Trigger Google sign-in.
- * @property setIsSettingsOpen  - Open the settings modal.
- * @property authError          - Error message from auth, if any.
- */
 interface SidebarProps {
     isSidebarOpen: boolean;
     isMobileMenuOpen: boolean;
@@ -63,13 +31,6 @@ interface SidebarProps {
     authError: string | null;
 }
 
-/**
- * Groups an array of chat sessions into date-based buckets.
- *
- * @param sessions - The full array of chat sessions to categorize.
- * @returns An object with keys "Today", "Yesterday", "Last 7 Days", "Older",
- *          each containing an array of matching sessions.
- */
 const groupSessionsByDate = (sessions: ChatSession[]) => {
     const today = new Date();
     const yesterday = new Date(today);
@@ -128,10 +89,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setIsSettingsOpen,
     authError
 }) => {
+    const navigate = useNavigate();
+    const location = useLocation();
     const groupedSessions = groupSessionsByDate(chatSessions);
     const filteredGroups = Object.entries(groupedSessions).filter(([_, sessions]) =>
         sessions.filter(s => (s.title || s.subject).toLowerCase().includes(searchQuery.toLowerCase())).length > 0
     );
+
+    const navItems = [
+        { path: '/', icon: 'chat', label: 'Chat' },
+        { path: '/tools', icon: 'auto_awesome', label: 'AI Tools' },
+        { path: '/notes', icon: 'note_stack', label: 'Notes Hub' },
+    ];
 
     return (
         <div className={`fixed inset-y-0 left-0 z-40 w-full md:w-full flex-col border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 transition-transform duration-300 md:translate-x-0 md:static ${isSidebarOpen ? 'md:flex' : 'md:hidden'} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex h-full text-zinc-900 dark:text-zinc-100`}>
@@ -149,6 +118,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
                     <span className="material-symbols-outlined">close</span>
                 </button>
+            </div>
+
+            {/* Navigation links */}
+            <div className="px-3 py-3 shrink-0 space-y-1 border-b border-zinc-200 dark:border-zinc-800">
+                {navItems.map(item => (
+                    <button
+                        key={item.path}
+                        onClick={() => { navigate(item.path); setIsMobileMenuOpen(false); }}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${location.pathname === item.path
+                                ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 shadow-sm'
+                                : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200'
+                            }`}
+                    >
+                        <span className={`material-symbols-outlined text-[20px] ${location.pathname === item.path ? 'text-indigo-500' : ''}`}>{item.icon}</span>
+                        {item.label}
+                    </button>
+                ))}
             </div>
 
             {/* Chat search */}
@@ -203,13 +189,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     {filteredSessions.map(session => (
                                         <div key={session.id} className="group relative">
                                             <button
-                                                onClick={() => { setActiveChatId(session.id); setIsMobileMenuOpen(false); }}
+                                                onClick={() => { setActiveChatId(session.id); setIsMobileMenuOpen(false); navigate('/'); }}
                                                 className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg font-medium text-sm transition-all text-left ${activeChatId === session.id
                                                     ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-l-2 border-indigo-500'
                                                     : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/50'
                                                     }`}
                                             >
-                                                {/* Subject-specific icon */}
                                                 <span className={`material-symbols-outlined text-[18px] ${activeChatId === session.id ? 'text-indigo-500' : 'text-zinc-400'}`}>
                                                     {session.subject === Subject.MATH ? 'calculate' :
                                                         session.subject === Subject.PHYSICS ? 'rocket_launch' :
@@ -219,7 +204,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                                 <span className="truncate flex-1">{session.title || session.subject}</span>
                                             </button>
 
-                                            {/* Context menu trigger */}
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === session.id ? null : session.id); }}
                                                 className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity ${openMenuId === session.id ? 'opacity-100' : ''}`}
@@ -227,7 +211,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                                 <span className="material-symbols-outlined text-[18px]">more_vert</span>
                                             </button>
 
-                                            {/* Context menu dropdown */}
                                             {openMenuId === session.id && (
                                                 <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 z-50 overflow-hidden text-sm">
                                                     <button
@@ -281,7 +264,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 )}
             </div>
 
-            {/* Auth error banner */}
             {authError && (
                 <div className="mx-4 mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-500 shrink-0">
                     {authError}

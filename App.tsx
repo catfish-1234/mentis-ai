@@ -1,25 +1,14 @@
 /**
  * @module App
  *
- * Root application component for MentisAI. Orchestrates the entire UI by
- * composing the sidebar, header, chat area, and input area. Manages
- * top-level application state including:
- *
- * - Firebase authentication (Google sign-in, anonymous fallback).
- * - Active chat session selection and creation.
- * - Subject selection, Socratic/Direct mode toggling.
- * - File attachment handling (images for STEM, code files for coding).
- * - Voice input integration.
- * - Theme initialization from localStorage.
- * - Modal dialogs for renaming and deleting chats.
- *
- * @see {@link useChat}     for message CRUD operations.
- * @see {@link useChatList} for chat session listing.
- * @see {@link useAI}       for AI provider communication.
- * @see {@link useVoice}    for speech-to-text input.
+ * Root application component for MentisAI. Orchestrates the entire UI with
+ * React Router for multi-page navigation (Chat, AI Tools, Notes Hub).
+ * Auth-gated sidebar: anonymous users see only a floating sign-in button;
+ * signed-in users get the full sidebar with navigation and chat history.
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Subject, Role, Attachment } from './types';
 import { useChat, useChatList } from './hooks/useFirestore';
 import { useAI } from './hooks/useAI';
@@ -32,9 +21,14 @@ import { InputArea } from './components/InputArea';
 import { ConversationTimeline } from './components/ConversationTimeline';
 import { RenameModal } from './components/RenameModal';
 import { DeleteModal } from './components/DeleteModal';
+import { ToolsPage } from './pages/ToolsPage';
+import { NotesHubPage } from './pages/NotesHubPage';
 import { signInWithPopup, signOut, auth, GoogleAuthProvider, onAuthStateChanged, signInAnonymously } from './firebase';
 
-function App() {
+function AppContent() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [activeSubject, setActiveSubject] = useState<Subject>(Subject.MATH);
   const [input, setInput] = useState('');
@@ -57,7 +51,9 @@ function App() {
   const [deleteChatId, setDeleteChatId] = useState<string | null>(null);
   const [deleteChatTitle, setDeleteChatTitle] = useState('');
 
-  /** Sync the Enter-to-Send preference when changed in SettingsModal. */
+  const [socraticMode, setSocraticMode] = useState(false);
+  const [reasoningMode, setReasoningMode] = useState(false);
+
   useEffect(() => {
     const handleStorage = () => {
       setEnterToSend(localStorage.getItem('enterToSend') !== 'false');
@@ -66,7 +62,6 @@ function App() {
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
-  /** Apply the persisted theme (light / dark / system) on initial load. */
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') || 'system';
     const root = window.document.documentElement;
@@ -83,14 +78,11 @@ function App() {
     }
   }, []);
 
-  const [socraticMode, setSocraticMode] = useState(false);
-
   const { messages, addMessage, createChat, updateMessage, deleteMessage, deleteMessagesAfter, loadingHistory, userId } = useChat(activeChatId);
   const { sessions: chatSessions, loading: loadingSessions, deleteChat, renameChat } = useChatList();
   const { sendMessage, isLoading: isThinking, statusMessage } = useAI();
   const { isListening, transcript, startListening, stopListening, resetTranscript } = useVoice();
 
-  /** Append recognized speech text to the input field as it arrives. */
   useEffect(() => {
     if (transcript) {
       setInput(prev => prev + transcript);
@@ -98,7 +90,6 @@ function App() {
     }
   }, [transcript, resetTranscript]);
 
-  /** Firebase Auth state listener — falls back to anonymous auth if no user. */
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u: any) => {
       if (u) {
@@ -106,16 +97,14 @@ function App() {
       } else {
         signInAnonymously(auth).catch((err: any) => {
           console.error("Anonymous auth failed", err);
-          if (err.code === 'auth/admin-restricted-operation') {
-            // Anonymous Auth may be disabled in the Firebase Console
-          }
         });
       }
     });
     return () => unsubscribe();
   }, []);
 
-  /** Trigger Google OAuth sign-in popup. */
+  const isSignedIn = user && !user.isAnonymous;
+
   const handleSignIn = async () => {
     try {
       await signInWithPopup(auth, new GoogleAuthProvider());
@@ -124,7 +113,6 @@ function App() {
     }
   };
 
-  /** Sign the current user out of Firebase Auth. */
   const handleSignOut = async () => {
     try {
       await signOut(auth);
@@ -135,18 +123,10 @@ function App() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /** Programmatically open the native file picker. */
   const handleAttachment = () => {
     fileInputRef.current?.click();
   };
 
-  /**
-   * Process a file selected by the user. Validates the file type against
-   * the active subject's restrictions:
-   * - Coding: accepts `.py`, `.js`, `.html`, `.css`, `.ts`, `.json` as text.
-   * - STEM subjects: accept image files.
-   * - Other subjects / invalid types: shows an alert.
-   */
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -156,15 +136,9 @@ function App() {
       if (activeSubject === Subject.CODING) {
         const allowedExtensions = ['.py', '.js', '.html', '.css', '.ts', '.json'];
         const isAllowed = allowedExtensions.some(ext => fileName.toLowerCase().endsWith(ext));
-
         if (isAllowed) {
           const textInfo = await file.text();
-          setAttachment({
-            content: textInfo,
-            type: 'text',
-            fileName: fileName,
-            mimeType: fileType
-          });
+          setAttachment({ content: textInfo, type: 'text', fileName, mimeType: fileType });
           return;
         }
       }
@@ -174,12 +148,7 @@ function App() {
           const reader = new FileReader();
           reader.onload = (event) => {
             if (event.target?.result) {
-              setAttachment({
-                content: event.target.result as string,
-                type: 'image',
-                fileName: fileName,
-                mimeType: fileType
-              });
+              setAttachment({ content: event.target.result as string, type: 'image', fileName, mimeType: fileType });
             }
           };
           reader.readAsDataURL(file);
@@ -192,23 +161,18 @@ function App() {
     }
   };
 
-  /** Toggle speech recognition on/off. */
   const handleVoice = () => {
-    if (isListening) {
-      stopListening();
-    } else {
-      startListening();
-    }
+    if (isListening) stopListening();
+    else startListening();
   };
 
-  /** Reset to the new-chat state. */
   const handleNewChat = () => {
     setActiveChatId(null);
     setActiveSubject(Subject.MATH);
     setIsMobileMenuOpen(false);
+    navigate('/');
   };
 
-  /** Open the rename modal pre-filled with the chat's current title. */
   const handleRenameChat = (id: string) => {
     const session = chatSessions.find(s => s.id === id);
     setRenameChatId(id);
@@ -217,7 +181,6 @@ function App() {
     setOpenMenuId(null);
   };
 
-  /** Persist the new chat name and close the rename modal. */
   const confirmRename = async (newName: string) => {
     if (renameChatId && newName.trim()) {
       await renameChat(renameChatId, newName.trim());
@@ -226,7 +189,6 @@ function App() {
     setRenameChatId(null);
   };
 
-  /** Open the delete confirmation modal for a specific chat. */
   const handleDeleteChat = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const session = chatSessions.find(s => s.id === id);
@@ -236,7 +198,6 @@ function App() {
     setOpenMenuId(null);
   };
 
-  /** Execute the chat deletion and reset active chat if needed. */
   const confirmDelete = async () => {
     if (deleteChatId) {
       await deleteChat(deleteChatId);
@@ -246,38 +207,27 @@ function App() {
     setDeleteChatId(null);
   };
 
-  /**
-   * Populate the input with a previous user message's content and remove
-   * that message (and all subsequent messages) so the user can re-submit.
-   */
   const handleEdit = async (msg: any) => {
     setInput(msg.content);
     await deleteMessagesAfter(msg.timestamp);
     await deleteMessage(msg.id);
-
     if (textareaRef.current) textareaRef.current.focus();
   };
 
-  /**
-   * Remove the last AI response and re-send the preceding user message
-   * to get a fresh AI-generated answer.
-   */
   const handleRegenerate = async () => {
     const lastMsg = messages[messages.length - 1];
     if (lastMsg.role === Role.MODEL) {
       await deleteMessage(lastMsg.id);
       const lastUserMsg = messages[messages.length - 2];
       if (lastUserMsg && lastUserMsg.role === Role.USER) {
-        const response = await sendMessage(lastUserMsg.content, activeSubject, messages.slice(0, -2), lastUserMsg.attachment);
+        const response = await sendMessage(lastUserMsg.content, activeSubject, messages.slice(0, -2), lastUserMsg.attachment, socraticMode, reasoningMode);
         await addMessage(response, Role.MODEL);
       }
     }
   };
 
-  /** Ref for the auto-resizing textarea in the input area. */
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  /** Auto-resize the textarea to fit its content. */
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -286,11 +236,6 @@ function App() {
     }
   }, [input]);
 
-  /**
-   * Core submit handler. Creates a new chat if none is active, persists
-   * the user message, calls the AI, and persists the AI response.
-   * Also triggers background auto-naming for new chats.
-   */
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!input.trim() || isThinking || !userId) return;
@@ -305,7 +250,6 @@ function App() {
       currentChatId = newId;
       setActiveChatId(newId);
 
-      // Background: ask AI for a short title and rename the chat
       sendMessage(`Summarize this query in 3-5 words for a chat title: "${userText}"`, activeSubject, [])
         .then(title => {
           const cleanTitle = title.replace(/^["']|["']$/g, '');
@@ -321,10 +265,8 @@ function App() {
         setSessionPrompts(prev => [...prev, userText]);
       }
 
-      // Anonymous users don't send history (privacy / quota reasons)
       const historyToSend = user?.isAnonymous ? [] : messages;
-
-      const response = await sendMessage(userText, activeSubject, historyToSend, attachment, socraticMode);
+      const response = await sendMessage(userText, activeSubject, historyToSend, attachment, socraticMode, reasoningMode);
 
       setAttachment(undefined);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -332,51 +274,46 @@ function App() {
       if (currentChatId) {
         await addMessage(response, Role.MODEL, undefined, currentChatId);
       }
-
     } catch (error) {
       console.error("Failed to get response", error);
     }
   };
 
-  /**
-   * Keyboard handler for the chat input textarea.
-   * Behavior depends on the user's Enter-to-Send preference.
-   */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (enterToSend) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleSubmit();
-      }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
     } else {
-      if (e.key === 'Enter' && e.ctrlKey) {
-        e.preventDefault();
-        handleSubmit();
-      }
+      if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); handleSubmit(); }
     }
   };
+
+  const isChatRoute = location.pathname === '/';
 
   return (
     <>
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} user={user} />
-      <RenameModal
-        isOpen={renameModalOpen}
-        currentName={renameChatTitle}
-        onClose={() => setRenameModalOpen(false)}
-        onRename={confirmRename}
-      />
-      <DeleteModal
-        isOpen={deleteModalOpen}
-        title={deleteChatTitle}
-        onClose={() => setDeleteModalOpen(false)}
-        onConfirm={confirmDelete}
-      />
+      <RenameModal isOpen={renameModalOpen} currentName={renameChatTitle} onClose={() => setRenameModalOpen(false)} onRename={confirmRename} />
+      <DeleteModal isOpen={deleteModalOpen} title={deleteChatTitle} onClose={() => setDeleteModalOpen(false)} onConfirm={confirmDelete} />
 
       <div className="flex h-screen w-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans overflow-hidden">
 
-        {/* Desktop Sidebar */}
-        {isSidebarOpen && (
-          <aside className="w-[260px] flex-shrink-0 h-full bg-zinc-50 border-r border-zinc-200 flex-col z-20 hidden md:flex">
+        {/* Floating sign-in button for anonymous users */}
+        {!isSignedIn && (
+          <div className="fixed left-4 top-1/2 -translate-y-1/2 z-30">
+            <button
+              onClick={handleSignIn}
+              className="flex flex-col items-center gap-2 px-3 py-4 bg-zinc-900 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-100 text-white dark:text-zinc-900 rounded-2xl shadow-xl transition-all hover:shadow-2xl hover:scale-105 group"
+              title="Sign in with Google"
+            >
+              <span className="material-symbols-outlined text-[24px] group-hover:scale-110 transition-transform">login</span>
+              <span className="text-[10px] font-bold tracking-wide uppercase">Sign In</span>
+            </button>
+          </div>
+        )}
+
+        {/* Desktop Sidebar — signed-in users only */}
+        {isSignedIn && isSidebarOpen && (
+          <aside className="w-[260px] flex-shrink-0 h-full bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 flex-col z-20 hidden md:flex">
             <Sidebar
               isSidebarOpen={isSidebarOpen}
               isMobileMenuOpen={isMobileMenuOpen}
@@ -411,86 +348,107 @@ function App() {
               setIsSidebarOpen={setIsSidebarOpen}
               socraticMode={socraticMode}
               setSocraticMode={setSocraticMode}
+              reasoningMode={reasoningMode}
+              setReasoningMode={setReasoningMode}
               user={user}
               handleNewChat={handleNewChat}
+              isSignedIn={isSignedIn}
             />
           </header>
 
-          {/* Scrollable Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-0 scroll-smooth relative">
-            <ChatArea
-              loadingHistory={loadingHistory}
-              messages={messages}
-              user={user}
-              activeSubject={activeSubject}
-              handleEdit={handleEdit}
-              handleRegenerate={handleRegenerate}
-              isThinking={isThinking}
-              statusMessage={statusMessage}
-            />
-            {/* Mini-map timeline for quick navigation (visible when > 2 messages) */}
-            {messages.length > 2 && (
-              <ConversationTimeline
-                messages={messages}
-                onNodeClick={(msgId) => {
-                  const el = document.getElementById(`msg-${msgId}`);
-                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }}
-              />
-            )}
-          </div>
+          {/* Routes */}
+          <Routes>
+            <Route path="/tools" element={<ToolsPage />} />
+            <Route path="/notes" element={<NotesHubPage />} />
+            <Route path="*" element={
+              <>
+                {/* Scrollable Chat Messages */}
+                <div className="flex-1 overflow-y-auto p-0 scroll-smooth relative">
+                  <ChatArea
+                    loadingHistory={loadingHistory}
+                    messages={messages}
+                    user={user}
+                    activeSubject={activeSubject}
+                    handleEdit={handleEdit}
+                    handleRegenerate={handleRegenerate}
+                    isThinking={isThinking}
+                    statusMessage={statusMessage}
+                  />
+                  {messages.length > 2 && (
+                    <ConversationTimeline
+                      messages={messages}
+                      onNodeClick={(msgId) => {
+                        const el = document.getElementById(`msg-${msgId}`);
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }}
+                    />
+                  )}
+                </div>
 
-          {/* Fixed Input Area */}
-          <div className="flex-shrink-0 p-4 w-full max-w-4xl mx-auto">
-            <InputArea
-              sessionPrompts={sessionPrompts}
-              setInput={setInput}
-              activeSubject={activeSubject}
-              setActiveSubject={setActiveSubject}
-              input={input}
-              textareaRef={textareaRef}
-              handleKeyDown={handleKeyDown}
-              attachment={attachment}
-              setAttachment={setAttachment}
-              fileInputRef={fileInputRef}
-              handleAttachment={handleAttachment}
-              handleVoice={handleVoice}
-              isListening={isListening}
-              handleSubmit={handleSubmit}
-              isThinking={isThinking}
-              handleFileSelect={handleFileSelect}
-              user={user}
-              messages={messages}
-              socraticMode={socraticMode}
-            />
-          </div>
+                {/* Fixed Input Area */}
+                <div className="flex-shrink-0 p-4 w-full max-w-4xl mx-auto">
+                  <InputArea
+                    sessionPrompts={sessionPrompts}
+                    setInput={setInput}
+                    activeSubject={activeSubject}
+                    setActiveSubject={setActiveSubject}
+                    input={input}
+                    textareaRef={textareaRef}
+                    handleKeyDown={handleKeyDown}
+                    attachment={attachment}
+                    setAttachment={setAttachment}
+                    fileInputRef={fileInputRef}
+                    handleAttachment={handleAttachment}
+                    handleVoice={handleVoice}
+                    isListening={isListening}
+                    handleSubmit={handleSubmit}
+                    isThinking={isThinking}
+                    handleFileSelect={handleFileSelect}
+                    user={user}
+                    messages={messages}
+                    socraticMode={socraticMode}
+                  />
+                </div>
+              </>
+            } />
+          </Routes>
         </main>
 
-        {/* Mobile Sidebar (Off-canvas Drawer) */}
-        <div className="md:hidden">
-          <Sidebar
-            isSidebarOpen={isSidebarOpen}
-            isMobileMenuOpen={isMobileMenuOpen}
-            setIsMobileMenuOpen={setIsMobileMenuOpen}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            handleNewChat={handleNewChat}
-            loadingSessions={loadingSessions}
-            chatSessions={chatSessions}
-            activeChatId={activeChatId}
-            setActiveChatId={setActiveChatId}
-            openMenuId={openMenuId}
-            setOpenMenuId={setOpenMenuId}
-            handleRenameChat={handleRenameChat}
-            handleDeleteChat={handleDeleteChat}
-            user={user}
-            handleSignIn={handleSignIn}
-            setIsSettingsOpen={setIsSettingsOpen}
-            authError={authError}
-          />
-        </div>
+        {/* Mobile Sidebar — signed-in users only */}
+        {isSignedIn && (
+          <div className="md:hidden">
+            <Sidebar
+              isSidebarOpen={isSidebarOpen}
+              isMobileMenuOpen={isMobileMenuOpen}
+              setIsMobileMenuOpen={setIsMobileMenuOpen}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              handleNewChat={handleNewChat}
+              loadingSessions={loadingSessions}
+              chatSessions={chatSessions}
+              activeChatId={activeChatId}
+              setActiveChatId={setActiveChatId}
+              openMenuId={openMenuId}
+              setOpenMenuId={setOpenMenuId}
+              handleRenameChat={handleRenameChat}
+              handleDeleteChat={handleDeleteChat}
+              user={user}
+              handleSignIn={handleSignIn}
+              setIsSettingsOpen={setIsSettingsOpen}
+              authError={authError}
+            />
+          </div>
+        )}
       </div>
     </>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   );
 }
 

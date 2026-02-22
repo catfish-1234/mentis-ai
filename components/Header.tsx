@@ -1,30 +1,12 @@
 /**
  * @module Header
  *
- * Top navigation bar for MentisAI. Contains the sidebar toggle button,
- * branding (logo + app name), and the Socratic/Direct mode toggle switch.
- *
- * The mode toggle is only visible to authenticated (non-anonymous) users.
- * Anonymous users see a prompt to sign in for advanced features.
- *
- * Responsive: shows compact mobile branding on small screens and a
- * breadcrumb-style label on desktop.
+ * Top navigation bar with sidebar toggle, branding, and three-mode toggle
+ * (Direct / Socratic / Reasoning). Only shows mode toggle for signed-in users.
  */
 
 import React from 'react';
 
-/**
- * Props for the {@link Header} component.
- *
- * @property isMobileMenuOpen    - Whether the mobile sidebar drawer is open.
- * @property setIsMobileMenuOpen - Toggle the mobile sidebar drawer.
- * @property isSidebarOpen       - Whether the desktop sidebar is visible.
- * @property setIsSidebarOpen    - Toggle the desktop sidebar.
- * @property socraticMode        - Whether Socratic tutoring mode is active.
- * @property setSocraticMode     - Toggle Socratic mode on/off.
- * @property user                - Firebase Auth user object.
- * @property handleNewChat       - Callback to navigate to the new-chat state.
- */
 interface HeaderProps {
     isMobileMenuOpen: boolean;
     setIsMobileMenuOpen: (open: boolean) => void;
@@ -32,8 +14,11 @@ interface HeaderProps {
     setIsSidebarOpen: (open: boolean) => void;
     socraticMode: boolean;
     setSocraticMode: (mode: boolean) => void;
+    reasoningMode: boolean;
+    setReasoningMode: (mode: boolean) => void;
     user: any;
     handleNewChat: () => void;
+    isSignedIn: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -43,15 +28,22 @@ export const Header: React.FC<HeaderProps> = ({
     setIsSidebarOpen,
     socraticMode,
     setSocraticMode,
+    reasoningMode,
+    setReasoningMode,
     user,
-    handleNewChat
+    handleNewChat,
+    isSignedIn
 }) => {
-    const isSignedIn = user && !user.isAnonymous;
+    const setMode = (mode: 'direct' | 'socratic' | 'reasoning') => {
+        setSocraticMode(mode === 'socratic');
+        setReasoningMode(mode === 'reasoning');
+    };
+
+    const activeMode = reasoningMode ? 'reasoning' : socraticMode ? 'socratic' : 'direct';
 
     return (
         <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-3">
-                {/* Sidebar toggle — opens mobile drawer on small screens, toggles sidebar on desktop */}
                 <button onClick={() => {
                     if (window.innerWidth < 768) setIsMobileMenuOpen(!isMobileMenuOpen);
                     else setIsSidebarOpen(!isSidebarOpen);
@@ -80,20 +72,37 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             <div className="flex items-center gap-3">
-                {/* Socratic / Direct mode toggle — authenticated users only */}
+                {/* Three-mode toggle — authenticated users only */}
                 {isSignedIn ? (
-                    <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-full border border-zinc-200 dark:border-zinc-700">
+                    <div className="flex items-center gap-0.5 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-full border border-zinc-200 dark:border-zinc-700">
                         <button
-                            onClick={() => setSocraticMode(false)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${!socraticMode ? 'bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-white' : 'text-zinc-500 hover:text-zinc-700'}`}
+                            onClick={() => setMode('direct')}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${activeMode === 'direct'
+                                    ? 'bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-white'
+                                    : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                                }`}
                         >
                             Direct
                         </button>
                         <button
-                            onClick={() => setSocraticMode(true)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${socraticMode ? 'bg-indigo-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}
+                            onClick={() => setMode('socratic')}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${activeMode === 'socratic'
+                                    ? 'bg-indigo-600 text-white shadow-sm'
+                                    : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                                }`}
                         >
                             Socratic
+                        </button>
+                        <button
+                            onClick={() => setMode('reasoning')}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${activeMode === 'reasoning'
+                                    ? 'bg-violet-600 text-white shadow-sm'
+                                    : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                                }`}
+                            title="Chain-of-thought reasoning mode"
+                        >
+                            <span className="hidden sm:inline">Reasoning</span>
+                            <span className="sm:hidden">🧠</span>
                         </button>
                     </div>
                 ) : (
