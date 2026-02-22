@@ -8,8 +8,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import Groq from "groq-sdk";
+import { auth } from '../firebase';
 import { Subject, Message, Role } from '../types';
 import { getStoredLanguage, getLanguageInstruction } from '../i18n';
 
@@ -89,59 +88,30 @@ MODE: Direct Answer
                 { role: "user", content: text + (attachment?.type === 'text' ? `\n[File]: ${attachment.content}` : '') }
             ];
 
-            // Route 1: Image attachments always use Gemini Vision
-            if (attachment?.type === 'image') {
-                setStatusMessage("Analyzing image...");
-                const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-                const model = genAI.getGenerativeModel({
-                    model: "gemini-1.5-flash",
-                    systemInstruction: systemInstruction
-                });
+            const token = await auth.currentUser?.getIdToken();
+            if (!token) throw new Error("User must be logged in to use AI");
 
-                const imagePart = {
-                    inlineData: {
-                        data: attachment.content.split(',')[1],
-                        mimeType: attachment.mimeType || "image/jpeg"
-                    }
-                };
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    prompt: text,
+                    history: messagesForAI,
+                    fileData: attachment?.type === 'image' ? attachment.content.split(',')[1] : null,
+                    reasoningMode,
+                    socraticMode,
+                    subject,
+                    langInstruction,
+                    mimeType: attachment?.mimeType
+                })
+            });
 
-                const chat = model.startChat({ history });
-                const result = await chat.sendMessage([text, imagePart]);
-                return result.response.text();
-            }
-
-            // Route 2: Text-only — try Groq first, fall back to Gemini
-            try {
-                const groqApiKey = import.meta.env.VITE_GROQ_API_KEY;
-                if (!groqApiKey) throw new Error("Groq API Key missing");
-
-                const groq = new Groq({ apiKey: groqApiKey, dangerouslyAllowBrowser: true });
-
-                const completion = await groq.chat.completions.create({
-                    messages: messagesForAI as any,
-                    model: "llama-3.3-70b-versatile",
-                    temperature: reasoningMode ? 0.3 : 0.7,
-                    max_tokens: reasoningMode ? 2048 : 1024,
-                });
-
-                const response = completion.choices[0]?.message?.content;
-                if (!response) throw new Error("Empty response from Groq");
-                return response;
-
-            } catch (groqError: any) {
-                console.warn("Groq failed, falling back to Gemini", groqError);
-                setStatusMessage("Using backup model...");
-
-                const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
-                const model = genAI.getGenerativeModel({
-                    model: "gemini-1.5-flash",
-                    systemInstruction: systemInstruction
-                });
-
-                const chat = model.startChat({ history });
-                const result = await chat.sendMessage(text + (attachment?.type === 'text' ? `\n\nFile Content:\n${attachment.content}` : ''));
-                return result.response.text();
-            }
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to fetch response');
+            return data.text;
 
         } catch (error: any) {
             console.error("AI Error:", error);
