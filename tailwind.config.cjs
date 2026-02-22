@@ -1,4 +1,12 @@
-/** @type {import('tailwindcss').Config} */
+/**
+ * Tailwind CSS Configuration — MentisAI
+ *
+ * Enables class-based dark mode, scans all source file locations for
+ * Tailwind utility usage, and extends the default theme with the
+ * Inter font family.
+ *
+ * @type {import('tailwindcss').Config}
+ */
 module.exports = {
     darkMode: 'class',
     content: [

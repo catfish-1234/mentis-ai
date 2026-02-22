@@ -1,8 +1,32 @@
+/**
+ * @module useAI
+ *
+ * Custom React hook that encapsulates all AI provider logic for MentisAI.
+ * Implements a hybrid architecture: Groq (LLaMA 3.3 70B) is the primary
+ * provider for text-only queries, with Google Gemini as the fallback.
+ * Image-bearing queries always route to Gemini Vision.
+ *
+ * The hook manages loading state, status messages (e.g. "Thinking…",
+ * "Analyzing image…"), and error handling across both providers.
+ *
+ * Depends on environment variables:
+ *  - `VITE_GROQ_API_KEY`   — Groq Cloud API key.
+ *  - `VITE_GEMINI_API_KEY` — Google Gemini API key.
+ */
+
 import { useState, useCallback } from 'react';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Groq from "groq-sdk";
 import { Subject, Message, Role } from '../types';
 
+/**
+ * Shape of the value returned by {@link useAI}.
+ *
+ * @property sendMessage   - Sends a user message to the AI and returns the text response.
+ * @property isLoading     - `true` while an AI request is in flight.
+ * @property error         - Human-readable error message, or `null`.
+ * @property statusMessage - Transient UI status (e.g. "Thinking…"), or `null`.
+ */
 interface UseAIReturn {
     sendMessage: (text: string, subject: Subject, previousMessages: Message[], attachment?: { content: string, type: 'image' | 'text', mimeType?: string }, socraticMode?: boolean) => Promise<string>;
     isLoading: boolean;
@@ -10,22 +34,47 @@ interface UseAIReturn {
     statusMessage: string | null;
 }
 
+/**
+ * Hook that provides a `sendMessage` function for communicating with
+ * the AI backend. Handles provider selection, prompt construction,
+ * Socratic/Direct mode switching, and automatic Groq → Gemini fallback.
+ *
+ * @returns {UseAIReturn} AI communication interface.
+ *
+ * @example
+ * ```tsx
+ * const { sendMessage, isLoading } = useAI();
+ * const reply = await sendMessage("What is gravity?", Subject.PHYSICS, []);
+ * ```
+ */
 export const useAI = (): UseAIReturn => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
+    /**
+     * Sends a message to the AI and returns the generated response text.
+     *
+     * @param text             - The user's input text.
+     * @param subject          - Active academic subject (affects system prompt).
+     * @param previousMessages - Conversation history for context.
+     * @param attachment       - Optional file attachment (image or text).
+     * @param socraticMode     - When `true`, the AI guides the student via questions
+     *                           instead of giving direct answers.
+     * @returns The AI-generated response string.
+     *
+     * @throws Catches all errors internally; returns an error string on failure.
+     */
     const sendMessage = useCallback(async (text: string, subject: Subject, previousMessages: Message[], attachment?: { content: string, type: 'image' | 'text', mimeType?: string }, socraticMode: boolean = false) => {
         setIsLoading(true);
         setStatusMessage("Thinking...");
         setError(null);
 
         try {
-            // Check Settings for Mode (Legacy) or Socratic Toggle (Priority)
-            const directMode = localStorage.getItem('directAnswers') === 'true'; // Legacy setting
-            const isSocratic = socraticMode; // Toggle override
+            const directMode = localStorage.getItem('directAnswers') === 'true';
+            const isSocratic = socraticMode;
 
-            // Construct System Prompt
+            // Build the system prompt based on subject and teaching mode
             let basePrompt = `You are an expert Tutor specialized in ${subject}. IMPORTANT: Always use proper grammar, spelling, and formatting. Never use typos.`;
             if (!isSocratic) {
                 basePrompt += `
@@ -48,18 +97,19 @@ MODE: Socratic Tutor
 - If they're stuck, give small hints instead of answers.`;
             }
 
-            // Subject Specifics
+            // Append subject-specific formatting instructions
             if (subject === Subject.MATH) basePrompt += " Use LaTeX for math equations.";
             if (subject === Subject.CODING) basePrompt += " Provide clean, commented code snippets.";
 
             const systemInstruction = basePrompt;
 
+            // Format conversation history for Gemini's chat API
             const history = previousMessages.map(msg => ({
                 role: msg.role === Role.USER ? "user" : "model",
                 parts: [{ text: msg.content + (msg.attachment ? `\n[Attachment: ${msg.attachment.fileName}]` : "") }]
             }));
 
-            // Groq Messages Format
+            // Format conversation history for Groq's OpenAI-compatible API
             const messagesForAI = [
                 { role: "system", content: systemInstruction },
                 ...previousMessages.map(msg => ({
@@ -69,7 +119,7 @@ MODE: Socratic Tutor
                 { role: "user", content: text + (attachment?.type === 'text' ? `\n[File]: ${attachment.content}` : '') }
             ];
 
-            // 1. Check for Image (Gemini Vision)
+            // Route 1: Image attachments always use Gemini Vision
             if (attachment?.type === 'image') {
                 setStatusMessage("Analyzing image...");
                 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
@@ -94,7 +144,7 @@ MODE: Socratic Tutor
                 return result.response.text();
             }
 
-            // 2. Text Only (Groq with Fallback)
+            // Route 2: Text-only — try Groq first, fall back to Gemini
             try {
                 const groqApiKey = import.meta.env.VITE_GROQ_API_KEY;
                 if (!groqApiKey) throw new Error("Groq API Key missing");
@@ -139,4 +189,3 @@ MODE: Socratic Tutor
 
     return { sendMessage, isLoading, error, statusMessage };
 };
-

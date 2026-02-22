@@ -1,6 +1,47 @@
+/**
+ * @module Sidebar
+ *
+ * Navigation sidebar displaying the user's chat history, grouped by date
+ * (Today, Yesterday, Last 7 Days, Older). Also contains:
+ *
+ * - MentisAI logo/branding (clickable → new chat).
+ * - Search input for filtering chats by title or subject.
+ * - "New Chat" button.
+ * - Per-chat context menu with Rename and Delete options.
+ * - User profile footer (sign-in button for anonymous, profile card for signed-in).
+ *
+ * Rendered in two locations in the DOM:
+ * 1. Inside a fixed `<aside>` on desktop (toggle via sidebar button).
+ * 2. As a full-screen off-canvas drawer on mobile (toggle via hamburger).
+ *
+ * Uses a `groupSessionsByDate` helper to bucket sessions by recency.
+ */
+
 import React from 'react';
 import { Subject, ChatSession } from '../types';
 
+/**
+ * Props for the {@link Sidebar} component.
+ *
+ * @property isSidebarOpen      - Whether the desktop sidebar is visible.
+ * @property isMobileMenuOpen   - Whether the mobile drawer is open.
+ * @property setIsMobileMenuOpen - Toggle the mobile drawer.
+ * @property searchQuery        - Current chat search filter text.
+ * @property setSearchQuery     - Update the search filter.
+ * @property handleNewChat      - Navigate to the new-chat state.
+ * @property loadingSessions    - Whether chat sessions are being fetched.
+ * @property chatSessions       - Array of all user chat sessions.
+ * @property activeChatId       - Currently selected chat ID.
+ * @property setActiveChatId    - Select a chat by ID.
+ * @property openMenuId         - ID of the chat whose context menu is open.
+ * @property setOpenMenuId      - Open/close a chat's context menu.
+ * @property handleRenameChat   - Open the rename modal for a chat.
+ * @property handleDeleteChat   - Open the delete modal for a chat.
+ * @property user               - Firebase Auth user object.
+ * @property handleSignIn       - Trigger Google sign-in.
+ * @property setIsSettingsOpen  - Open the settings modal.
+ * @property authError          - Error message from auth, if any.
+ */
 interface SidebarProps {
     isSidebarOpen: boolean;
     isMobileMenuOpen: boolean;
@@ -22,7 +63,13 @@ interface SidebarProps {
     authError: string | null;
 }
 
-// Helper to group sessions by date
+/**
+ * Groups an array of chat sessions into date-based buckets.
+ *
+ * @param sessions - The full array of chat sessions to categorize.
+ * @returns An object with keys "Today", "Yesterday", "Last 7 Days", "Older",
+ *          each containing an array of matching sessions.
+ */
 const groupSessionsByDate = (sessions: ChatSession[]) => {
     const today = new Date();
     const yesterday = new Date(today);
@@ -38,14 +85,13 @@ const groupSessionsByDate = (sessions: ChatSession[]) => {
     };
 
     sessions.forEach(session => {
-        // Handle both Date objects and Firestore Timestamps
         let sessionDate: Date;
         if (session.createdAt && typeof (session.createdAt as any).toDate === 'function') {
             sessionDate = (session.createdAt as any).toDate();
         } else if (session.createdAt instanceof Date) {
             sessionDate = session.createdAt;
         } else {
-            sessionDate = new Date(0); // Fallback for invalid dates
+            sessionDate = new Date(0);
         }
 
         if (sessionDate.toDateString() === today.toDateString()) {
@@ -90,7 +136,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return (
         <div className={`fixed inset-y-0 left-0 z-40 w-full md:w-full flex-col border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 transition-transform duration-300 md:translate-x-0 md:static ${isSidebarOpen ? 'md:flex' : 'md:hidden'} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex h-full text-zinc-900 dark:text-zinc-100`}>
 
-            {/* Header with Logo - Clickable to go home */}
+            {/* Branding header */}
             <div className="p-5 flex items-center justify-between shrink-0 border-b border-zinc-200 dark:border-zinc-800">
                 <button
                     onClick={handleNewChat}
@@ -105,7 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
             </div>
 
-            {/* Search */}
+            {/* Chat search */}
             <div className="px-4 py-3 shrink-0">
                 <div className="relative">
                     <span className="material-symbols-outlined absolute left-3 top-2.5 text-zinc-400 text-[18px]">search</span>
@@ -119,7 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
             </div>
 
-            {/* New Chat Button */}
+            {/* New Chat button */}
             <div className="px-4 pb-3 shrink-0">
                 <button onClick={handleNewChat} className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 px-4 rounded-xl font-medium transition-colors shadow-sm">
                     <span className="material-symbols-outlined text-[20px]">add</span>
@@ -127,7 +173,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
             </div>
 
-            {/* Chat History Tree - Grouped by Date */}
+            {/* Chat history grouped by date */}
             <div className="flex-1 overflow-y-auto px-3 py-2 space-y-4">
                 {loadingSessions ? (
                     <div className="text-zinc-500 text-xs px-3 py-4 text-center">
@@ -163,6 +209,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                                     : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800/50'
                                                     }`}
                                             >
+                                                {/* Subject-specific icon */}
                                                 <span className={`material-symbols-outlined text-[18px] ${activeChatId === session.id ? 'text-indigo-500' : 'text-zinc-400'}`}>
                                                     {session.subject === Subject.MATH ? 'calculate' :
                                                         session.subject === Subject.PHYSICS ? 'rocket_launch' :
@@ -172,6 +219,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                                 <span className="truncate flex-1">{session.title || session.subject}</span>
                                             </button>
 
+                                            {/* Context menu trigger */}
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === session.id ? null : session.id); }}
                                                 className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 opacity-0 group-hover:opacity-100 transition-opacity ${openMenuId === session.id ? 'opacity-100' : ''}`}
@@ -179,6 +227,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                                 <span className="material-symbols-outlined text-[18px]">more_vert</span>
                                             </button>
 
+                                            {/* Context menu dropdown */}
                                             {openMenuId === session.id && (
                                                 <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-zinc-200 dark:border-zinc-700 z-50 overflow-hidden text-sm">
                                                     <button
@@ -206,7 +255,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 )}
             </div>
 
-            {/* User Profile Footer */}
+            {/* User profile footer */}
             <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 shrink-0 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-sm">
                 {!user || user.isAnonymous ? (
                     <button onClick={handleSignIn} className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-zinc-900 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-100 text-white dark:text-zinc-900 transition-colors font-medium">
@@ -232,6 +281,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 )}
             </div>
 
+            {/* Auth error banner */}
             {authError && (
                 <div className="mx-4 mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-500 shrink-0">
                     {authError}

@@ -1,3 +1,24 @@
+/**
+ * @module App
+ *
+ * Root application component for MentisAI. Orchestrates the entire UI by
+ * composing the sidebar, header, chat area, and input area. Manages
+ * top-level application state including:
+ *
+ * - Firebase authentication (Google sign-in, anonymous fallback).
+ * - Active chat session selection and creation.
+ * - Subject selection, Socratic/Direct mode toggling.
+ * - File attachment handling (images for STEM, code files for coding).
+ * - Voice input integration.
+ * - Theme initialization from localStorage.
+ * - Modal dialogs for renaming and deleting chats.
+ *
+ * @see {@link useChat}     for message CRUD operations.
+ * @see {@link useChatList} for chat session listing.
+ * @see {@link useAI}       for AI provider communication.
+ * @see {@link useVoice}    for speech-to-text input.
+ */
+
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Subject, Role, Attachment } from './types';
 import { useChat, useChatList } from './hooks/useFirestore';
@@ -15,7 +36,7 @@ import { signInWithPopup, signOut, auth, GoogleAuthProvider, onAuthStateChanged,
 
 function App() {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  const [activeSubject, setActiveSubject] = useState<Subject>(Subject.MATH); // Defines the "New Chat" subject
+  const [activeSubject, setActiveSubject] = useState<Subject>(Subject.MATH);
   const [input, setInput] = useState('');
   const [user, setUser] = useState<any>(auth.currentUser);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -25,9 +46,9 @@ function App() {
 
   const [sessionPrompts, setSessionPrompts] = useState<string[]>([]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Desktop sidebar toggle
-  const [searchQuery, setSearchQuery] = useState(''); // Chat search
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null); // For sidebar menus
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [renameChatId, setRenameChatId] = useState<string | null>(null);
   const [renameChatTitle, setRenameChatTitle] = useState('');
@@ -36,7 +57,7 @@ function App() {
   const [deleteChatId, setDeleteChatId] = useState<string | null>(null);
   const [deleteChatTitle, setDeleteChatTitle] = useState('');
 
-  // Listen for storage changes (SettingsModal updates)
+  /** Sync the Enter-to-Send preference when changed in SettingsModal. */
   useEffect(() => {
     const handleStorage = () => {
       setEnterToSend(localStorage.getItem('enterToSend') !== 'false');
@@ -45,7 +66,7 @@ function App() {
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
-  // Initialize theme on app load
+  /** Apply the persisted theme (light / dark / system) on initial load. */
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') || 'system';
     const root = window.document.documentElement;
@@ -54,7 +75,6 @@ function App() {
     } else if (savedTheme === 'light') {
       root.classList.remove('dark');
     } else {
-      // System preference
       if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
         root.classList.add('dark');
       } else {
@@ -65,13 +85,12 @@ function App() {
 
   const [socraticMode, setSocraticMode] = useState(false);
 
-  // Custom Hooks
   const { messages, addMessage, createChat, updateMessage, deleteMessage, deleteMessagesAfter, loadingHistory, userId } = useChat(activeChatId);
   const { sessions: chatSessions, loading: loadingSessions, deleteChat, renameChat } = useChatList();
   const { sendMessage, isLoading: isThinking, statusMessage } = useAI();
   const { isListening, transcript, startListening, stopListening, resetTranscript } = useVoice();
 
-  // Sync Voice Transcript to Input
+  /** Append recognized speech text to the input field as it arrives. */
   useEffect(() => {
     if (transcript) {
       setInput(prev => prev + transcript);
@@ -79,7 +98,7 @@ function App() {
     }
   }, [transcript, resetTranscript]);
 
-  // Auth Listener
+  /** Firebase Auth state listener — falls back to anonymous auth if no user. */
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u: any) => {
       if (u) {
@@ -88,7 +107,7 @@ function App() {
         signInAnonymously(auth).catch((err: any) => {
           console.error("Anonymous auth failed", err);
           if (err.code === 'auth/admin-restricted-operation') {
-            // This error usually means Anonymous Auth is disabled in Firebase Console
+            // Anonymous Auth may be disabled in the Firebase Console
           }
         });
       }
@@ -96,6 +115,7 @@ function App() {
     return () => unsubscribe();
   }, []);
 
+  /** Trigger Google OAuth sign-in popup. */
   const handleSignIn = async () => {
     try {
       await signInWithPopup(auth, new GoogleAuthProvider());
@@ -104,6 +124,7 @@ function App() {
     }
   };
 
+  /** Sign the current user out of Firebase Auth. */
   const handleSignOut = async () => {
     try {
       await signOut(auth);
@@ -114,17 +135,24 @@ function App() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  /** Programmatically open the native file picker. */
   const handleAttachment = () => {
     fileInputRef.current?.click();
   };
 
+  /**
+   * Process a file selected by the user. Validates the file type against
+   * the active subject's restrictions:
+   * - Coding: accepts `.py`, `.js`, `.html`, `.css`, `.ts`, `.json` as text.
+   * - STEM subjects: accept image files.
+   * - Other subjects / invalid types: shows an alert.
+   */
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const fileType = file.type;
       const fileName = file.name;
 
-      // Subject Restrictions
       if (activeSubject === Subject.CODING) {
         const allowedExtensions = ['.py', '.js', '.html', '.css', '.ts', '.json'];
         const isAllowed = allowedExtensions.some(ext => fileName.toLowerCase().endsWith(ext));
@@ -142,7 +170,6 @@ function App() {
       }
 
       if ([Subject.MATH, Subject.PHYSICS, Subject.CHEMISTRY, Subject.BIOLOGY].includes(activeSubject)) {
-        // Allow images
         if (fileType.startsWith('image/')) {
           const reader = new FileReader();
           reader.onload = (event) => {
@@ -160,12 +187,12 @@ function App() {
         }
       }
 
-      // Default/Fallback Logic or Error
       alert(`File type not supported for ${activeSubject}. \nCoding: .py, .js, .html\nScience/Math: Images`);
-      e.target.value = ''; // Reset input
+      e.target.value = '';
     }
   };
 
+  /** Toggle speech recognition on/off. */
   const handleVoice = () => {
     if (isListening) {
       stopListening();
@@ -174,12 +201,14 @@ function App() {
     }
   };
 
+  /** Reset to the new-chat state. */
   const handleNewChat = () => {
     setActiveChatId(null);
-    setActiveSubject(Subject.MATH); // Default back to Math or keep current? Keeping current is fine but explicit is safer.
+    setActiveSubject(Subject.MATH);
     setIsMobileMenuOpen(false);
   };
 
+  /** Open the rename modal pre-filled with the chat's current title. */
   const handleRenameChat = (id: string) => {
     const session = chatSessions.find(s => s.id === id);
     setRenameChatId(id);
@@ -188,6 +217,7 @@ function App() {
     setOpenMenuId(null);
   };
 
+  /** Persist the new chat name and close the rename modal. */
   const confirmRename = async (newName: string) => {
     if (renameChatId && newName.trim()) {
       await renameChat(renameChatId, newName.trim());
@@ -196,6 +226,7 @@ function App() {
     setRenameChatId(null);
   };
 
+  /** Open the delete confirmation modal for a specific chat. */
   const handleDeleteChat = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const session = chatSessions.find(s => s.id === id);
@@ -205,6 +236,7 @@ function App() {
     setOpenMenuId(null);
   };
 
+  /** Execute the chat deletion and reset active chat if needed. */
   const confirmDelete = async () => {
     if (deleteChatId) {
       await deleteChat(deleteChatId);
@@ -214,35 +246,38 @@ function App() {
     setDeleteChatId(null);
   };
 
+  /**
+   * Populate the input with a previous user message's content and remove
+   * that message (and all subsequent messages) so the user can re-submit.
+   */
   const handleEdit = async (msg: any) => {
-    // 1. Set Input
     setInput(msg.content);
-    // 2. Delete this message and all after it
-    await deleteMessagesAfter(msg.timestamp); // This deletes everything strictly AFTER
+    await deleteMessagesAfter(msg.timestamp);
     await deleteMessage(msg.id);
 
     if (textareaRef.current) textareaRef.current.focus();
   };
 
+  /**
+   * Remove the last AI response and re-send the preceding user message
+   * to get a fresh AI-generated answer.
+   */
   const handleRegenerate = async () => {
-    // Find last user message?
-    // Logic: "Remove the last AI message, re-send the request".
-    // We assume the last message IS the AI message.
     const lastMsg = messages[messages.length - 1];
     if (lastMsg.role === Role.MODEL) {
       await deleteMessage(lastMsg.id);
-      // Now find the LAST user message
-      const lastUserMsg = messages[messages.length - 2]; // Assuming strict alternation
+      const lastUserMsg = messages[messages.length - 2];
       if (lastUserMsg && lastUserMsg.role === Role.USER) {
-        // Re-trigger send logic without adding user message
         const response = await sendMessage(lastUserMsg.content, activeSubject, messages.slice(0, -2), lastUserMsg.attachment);
         await addMessage(response, Role.MODEL);
       }
     }
   };
 
-  // Textarea auto-resize logic
+  /** Ref for the auto-resizing textarea in the input area. */
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  /** Auto-resize the textarea to fit its content. */
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -251,51 +286,49 @@ function App() {
     }
   }, [input]);
 
+  /**
+   * Core submit handler. Creates a new chat if none is active, persists
+   * the user message, calls the AI, and persists the AI response.
+   * Also triggers background auto-naming for new chats.
+   */
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!input.trim() || isThinking || !userId) return;
 
     const userText = input.trim();
-    setInput(''); // Clear immediately
+    setInput('');
 
-    // 1. Handle New Chat Creation if needed
     let currentChatId = activeChatId;
     if (!currentChatId) {
-      // Create new chat first
       const newId = await createChat(activeSubject, userText, Role.USER, attachment);
-      if (!newId) return; // Error
+      if (!newId) return;
       currentChatId = newId;
       setActiveChatId(newId);
 
-      // Trigger Background Auto-Naming
+      // Background: ask AI for a short title and rename the chat
       sendMessage(`Summarize this query in 3-5 words for a chat title: "${userText}"`, activeSubject, [])
         .then(title => {
-          // Remove quotes if any
           const cleanTitle = title.replace(/^["']|["']$/g, '');
           renameChat(newId, cleanTitle);
         })
         .catch(err => console.error("Auto-naming failed", err));
     } else {
-      // Add to existing
       await addMessage(userText, Role.USER, attachment);
     }
 
-    // 2. Call Gemini
     try {
       if (!sessionPrompts.includes(userText)) {
         setSessionPrompts(prev => [...prev, userText]);
       }
 
-      // 3. Call AI with correct history
+      // Anonymous users don't send history (privacy / quota reasons)
       const historyToSend = user?.isAnonymous ? [] : messages;
 
       const response = await sendMessage(userText, activeSubject, historyToSend, attachment, socraticMode);
 
-      // Clear attachment after send
       setAttachment(undefined);
       if (fileInputRef.current) fileInputRef.current.value = '';
 
-      // 3. Persist Response
       if (currentChatId) {
         await addMessage(response, Role.MODEL, undefined, currentChatId);
       }
@@ -305,6 +338,10 @@ function App() {
     }
   };
 
+  /**
+   * Keyboard handler for the chat input textarea.
+   * Behavior depends on the user's Enter-to-Send preference.
+   */
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (enterToSend) {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -335,10 +372,9 @@ function App() {
         onConfirm={confirmDelete}
       />
 
-      {/* TASK: RIGID SKELETON LAYOUT */}
       <div className="flex h-screen w-screen bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans overflow-hidden">
 
-        {/* SIDEBAR: Conditional rendering for proper toggle */}
+        {/* Desktop Sidebar */}
         {isSidebarOpen && (
           <aside className="w-[260px] flex-shrink-0 h-full bg-zinc-50 border-r border-zinc-200 flex-col z-20 hidden md:flex">
             <Sidebar
@@ -364,9 +400,9 @@ function App() {
           </aside>
         )}
 
-        {/* MAIN: Flex Grow, White Background */}
+        {/* Main Content Area */}
         <main className="flex-1 flex flex-col h-full relative z-10">
-          {/* Header */}
+          {/* Header Bar */}
           <header className="h-16 border-b border-zinc-100 dark:border-zinc-800 flex items-center px-4 flex-shrink-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm z-20">
             <Header
               isMobileMenuOpen={isMobileMenuOpen}
@@ -380,7 +416,7 @@ function App() {
             />
           </header>
 
-          {/* Scrollable Chat Area */}
+          {/* Scrollable Chat Messages */}
           <div className="flex-1 overflow-y-auto p-0 scroll-smooth relative">
             <ChatArea
               loadingHistory={loadingHistory}
@@ -392,7 +428,7 @@ function App() {
               isThinking={isThinking}
               statusMessage={statusMessage}
             />
-            {/* Conversation Timeline (Right side nodes) */}
+            {/* Mini-map timeline for quick navigation (visible when > 2 messages) */}
             {messages.length > 2 && (
               <ConversationTimeline
                 messages={messages}
@@ -430,7 +466,7 @@ function App() {
           </div>
         </main>
 
-        {/* Mobile Sidebar (Drawer) */}
+        {/* Mobile Sidebar (Off-canvas Drawer) */}
         <div className="md:hidden">
           <Sidebar
             isSidebarOpen={isSidebarOpen}

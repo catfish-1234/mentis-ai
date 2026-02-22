@@ -1,7 +1,49 @@
+/**
+ * @module InputArea
+ *
+ * The primary chat input area at the bottom of the main content column.
+ * Combines several interactive elements:
+ *
+ * - **Subject selector** dropdown for picking the tutoring subject.
+ * - **Auto-resizing textarea** for composing messages.
+ * - **Attachment preview chip** shown above the textarea when a file is attached.
+ * - **AI Tools dropdown** (Quiz, Deep Dive, Flashcards) — only for signed-in users.
+ * - **Attachment button** to open the native file picker.
+ * - **Voice input button** for speech-to-text (hidden on mobile).
+ * - **Send button** with disabled state during AI processing.
+ * - **Hidden file input** used by the attachment button.
+ *
+ * This component is presentational; all logic is driven by callbacks from
+ * the parent {@link App} component.
+ */
+
 import React from 'react';
 import { Subject, Attachment, Message } from '../types';
 import { SubjectSelector } from './SubjectSelector';
 
+/**
+ * Props for the {@link InputArea} component.
+ *
+ * @property sessionPrompts  - List of prompts sent in the current session (for history).
+ * @property setInput        - Update the input field value.
+ * @property activeSubject   - Currently selected tutoring subject.
+ * @property setActiveSubject - Change the active subject.
+ * @property input           - Current text in the input field.
+ * @property textareaRef     - Ref to the textarea DOM element (for auto-resize).
+ * @property handleKeyDown   - Keyboard handler (Enter/Ctrl+Enter to send).
+ * @property attachment      - Current file attachment, if any.
+ * @property setAttachment   - Set or clear the file attachment.
+ * @property fileInputRef    - Ref to the hidden file input element.
+ * @property handleAttachment - Open the file picker.
+ * @property handleVoice     - Toggle speech recognition.
+ * @property isListening     - Whether voice input is active.
+ * @property handleSubmit    - Submit the current message.
+ * @property isThinking      - Whether the AI is processing (disables send).
+ * @property handleFileSelect - Process a selected file.
+ * @property user            - Firebase Auth user object.
+ * @property messages        - Current message list (used to validate tool usage).
+ * @property socraticMode    - Whether Socratic mode is currently active.
+ */
 interface InputAreaProps {
     sessionPrompts: string[];
     setInput: (val: string) => void;
@@ -64,6 +106,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
                         rows={1}
                     ></textarea>
 
+                    {/* Floating attachment preview chip */}
                     {attachment && (
                         <div className="absolute top-[-40px] left-4 bg-white dark:bg-zinc-800 p-2 rounded-lg shadow-md flex items-center gap-2 text-xs border border-zinc-200 dark:border-zinc-700">
                             <span className="material-symbols-outlined text-[16px] text-indigo-500">
@@ -77,14 +120,15 @@ export const InputArea: React.FC<InputAreaProps> = ({
                     )}
                 </div>
 
+                {/* Action buttons row */}
                 <div className="flex items-center gap-1 px-3 py-2 sm:py-0 border-t sm:border-t-0 border-zinc-100 dark:border-zinc-700/50 justify-end sm:justify-start bg-zinc-50/50 dark:bg-zinc-800/30 sm:bg-transparent">
-                    {/* AI Tools - Only show for signed-in users */}
+                    {/* AI Learning Tools dropdown — signed-in users only */}
                     {isSignedIn && (
                         <div className="relative group">
                             <button className="p-2 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors" title="AI Tools">
                                 <span className="material-symbols-outlined text-[20px]">auto_awesome</span>
                             </button>
-                            {/* Hover Dropdown */}
+                            {/* Hover-activated dropdown with tool options */}
                             <div className="absolute bottom-full left-0 mb-2 w-72 bg-white dark:bg-zinc-800 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-700 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all transform origin-bottom-left z-50 overflow-hidden">
                                 <div className="p-2 border-b border-zinc-100 dark:border-zinc-700 flex items-center justify-between">
                                     <p className="text-xs font-medium text-zinc-500 px-2">AI Learning Tools</p>
@@ -101,6 +145,7 @@ export const InputArea: React.FC<InputAreaProps> = ({
                                     </div>
                                 </div>
                                 <div className="p-1">
+                                    {/* Generate Quiz tool */}
                                     <button
                                         onClick={() => {
                                             if (messages.length === 0) {
@@ -127,6 +172,7 @@ After all questions, provide an answer key.`);
                                             <div className="text-xs text-zinc-400 font-normal">5 multiple choice questions</div>
                                         </div>
                                     </button>
+                                    {/* Deep Dive tool */}
                                     <button
                                         onClick={() => {
                                             if (messages.length === 0) {
@@ -144,6 +190,7 @@ After all questions, provide an answer key.`);
                                             <div className="text-xs text-zinc-400 font-normal">Advanced critical thinking</div>
                                         </div>
                                     </button>
+                                    {/* Flashcards tool */}
                                     <button
                                         onClick={() => {
                                             if (messages.length === 0) {
@@ -170,6 +217,7 @@ Make at least 10 flashcards covering the key concepts. This format can be copied
                         </div>
                     )}
 
+                    {/* Attach file button */}
                     <button
                         onClick={handleAttachment}
                         className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700/50 rounded-lg transition-colors"
@@ -177,6 +225,7 @@ Make at least 10 flashcards covering the key concepts. This format can be copied
                     >
                         <span className="material-symbols-outlined text-[20px]">attach_file</span>
                     </button>
+                    {/* Voice input button — hidden on mobile */}
                     <button
                         onClick={handleVoice}
                         className={`p-2 rounded-lg transition-colors hidden sm:flex ${isListening ? 'text-red-500 bg-red-100 dark:bg-red-900/30 animate-pulse' : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700/50'}`}
@@ -184,6 +233,7 @@ Make at least 10 flashcards covering the key concepts. This format can be copied
                     >
                         <span className="material-symbols-outlined text-[20px]">{isListening ? 'mic_off' : 'mic'}</span>
                     </button>
+                    {/* Send button */}
                     <button
                         onClick={() => handleSubmit()}
                         disabled={!input.trim() || isThinking}

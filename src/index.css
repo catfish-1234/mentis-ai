@@ -1,3 +1,12 @@
+/**
+ * Global Styles — MentisAI
+ *
+ * Tailwind CSS entry point. Sets up:
+ * - Base layer: anti-aliased text, zinc-based background/foreground for light & dark modes.
+ * - Custom webkit scrollbar styling (thin, rounded).
+ * - `fade-in-up` keyframe animation used by chat messages and dropdowns.
+ */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,7 +17,7 @@
     }
 }
 
-/* Scrollbar Styling */
+/* Custom scrollbar — slim, rounded, matches the zinc color palette */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -26,7 +35,7 @@
     @apply bg-zinc-400 dark:bg-zinc-600;
 }
 
-/* Animations */
+/* Fade-in-up animation — used for chat bubbles and dropdown menus */
 @keyframes fade-in-up {
     from {
         opacity: 0;

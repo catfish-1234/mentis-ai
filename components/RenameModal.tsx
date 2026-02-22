@@ -1,5 +1,23 @@
+/**
+ * @module RenameModal
+ *
+ * Modal dialog for renaming a chat session. Pre-fills the input with
+ * the current chat title and auto-focuses/selects the text on open.
+ * Submitting an empty name is prevented by the disabled button state.
+ *
+ * Clicking the backdrop dismisses the modal without saving.
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
 
+/**
+ * Props for the {@link RenameModal} component.
+ *
+ * @property isOpen      - Controls modal visibility.
+ * @property currentName - The chat's existing title (pre-fills the input).
+ * @property onClose     - Called when the user cancels or clicks the backdrop.
+ * @property onRename    - Called with the new name when the user confirms.
+ */
 interface RenameModalProps {
     isOpen: boolean;
     currentName: string;
@@ -11,10 +29,12 @@ export const RenameModal: React.FC<RenameModalProps> = ({ isOpen, currentName, o
     const [newName, setNewName] = useState(currentName);
     const inputRef = useRef<HTMLInputElement>(null);
 
+    /** Sync the input value when the current name prop changes. */
     useEffect(() => {
         setNewName(currentName);
     }, [currentName]);
 
+    /** Auto-focus and select all text when the modal opens. */
     useEffect(() => {
         if (isOpen && inputRef.current) {
             inputRef.current.focus();
@@ -24,6 +44,7 @@ export const RenameModal: React.FC<RenameModalProps> = ({ isOpen, currentName, o
 
     if (!isOpen) return null;
 
+    /** Handle form submission — delegates to onRename if input is non-empty. */
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (newName.trim()) {

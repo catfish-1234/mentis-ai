@@ -1,6 +1,26 @@
+/**
+ * @module SubjectSelector
+ *
+ * Dropdown selector for choosing the active tutoring subject.
+ * Renders as a button showing the current subject with a chevron icon.
+ * Clicking opens an upward-expanding dropdown listing all available
+ * {@link Subject} values with subject-specific Material Symbols icons.
+ *
+ * Positioned inside the {@link InputArea} component, to the left of
+ * the chat input textarea.
+ *
+ * Clicks outside the dropdown automatically close it.
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Subject } from '../types';
 
+/**
+ * Props for the {@link SubjectSelector} component.
+ *
+ * @property activeSubject - The currently selected subject.
+ * @property onSelect      - Callback invoked when the user picks a new subject.
+ */
 interface SubjectSelectorProps {
   activeSubject: Subject;
   onSelect: (subject: Subject) => void;
@@ -10,6 +30,7 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({ activeSubject,
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  /** Close the dropdown when clicking outside of it. */
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -24,6 +45,7 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({ activeSubject,
 
   return (
     <div className="relative" ref={containerRef}>
+      {/* Trigger button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-3 py-2 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-200 text-sm font-medium rounded-lg transition-colors border-r border-zinc-200 dark:border-zinc-700 h-full sm:rounded-none sm:rounded-l-lg sm:border-0"
@@ -33,6 +55,7 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({ activeSubject,
         <span className={`material-symbols-outlined text-zinc-400 text-[18px] transition-transform ${isOpen ? 'rotate-180' : ''}`}>expand_more</span>
       </button>
 
+      {/* Dropdown menu — opens upward */}
       {isOpen && (
         <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden z-50 animate-fade-in-up">
           {subjects.map((sub) => (
@@ -48,6 +71,7 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({ activeSubject,
                   : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
                 }`}
             >
+              {/* Subject-specific icon */}
               <span className="material-symbols-outlined text-[18px]">
                 {sub === Subject.MATH ? 'calculate' :
                   sub === Subject.PHYSICS ? 'science' :

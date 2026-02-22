@@ -1,12 +1,39 @@
+/**
+ * @module SettingsModal
+ *
+ * Full-featured settings panel displayed as a modal overlay. Contains
+ * four tabs organized via a vertical sidebar navigation:
+ *
+ * - **General** — Chat preferences (Enter-to-Send toggle, Direct Answers toggle).
+ * - **Profile** — Display name editing and avatar upload.
+ * - **Appearance** — Theme selector (Light / Dark / System).
+ * - **Account** — Danger zone with sign-out button.
+ *
+ * Settings are persisted to `localStorage` and broadcast via
+ * `window.dispatchEvent(new Event('storage'))` so the parent App
+ * component can react to changes in real time.
+ *
+ * Avatar uploads encode the image as a base64 data URI and store it
+ * directly in the Firebase Auth user profile (`photoURL`).
+ */
+
 import React, { useState, useEffect } from 'react';
 import { auth, signOut, updateProfile } from '../firebase';
 
+/**
+ * Props for the {@link SettingsModal} component.
+ *
+ * @property isOpen  - Controls modal visibility.
+ * @property onClose - Called when the user dismisses the modal.
+ * @property user    - Firebase Auth user object.
+ */
 interface SettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
     user: any;
 }
 
+/** Available settings tabs. */
 type Tab = 'general' | 'profile' | 'appearance' | 'account';
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, user }) => {
@@ -14,25 +41,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
     const [displayName, setDisplayName] = useState(user?.displayName || '');
     const [isUpdating, setIsUpdating] = useState(false);
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'system');
-    const [enterToSend, setEnterToSend] = useState(localStorage.getItem('enterToSend') !== 'false'); // Default true
-    const [directAnswers, setDirectAnswers] = useState(localStorage.getItem('directAnswers') === 'true'); // Default false
+    const [enterToSend, setEnterToSend] = useState(localStorage.getItem('enterToSend') !== 'false');
+    const [directAnswers, setDirectAnswers] = useState(localStorage.getItem('directAnswers') === 'true');
 
+    /** Persist Enter-to-Send preference and notify listeners. */
     useEffect(() => {
         localStorage.setItem('enterToSend', String(enterToSend));
         window.dispatchEvent(new Event('storage'));
     }, [enterToSend]);
 
+    /** Persist Direct Answers preference and notify listeners. */
     useEffect(() => {
         localStorage.setItem('directAnswers', String(directAnswers));
         window.dispatchEvent(new Event('storage'));
     }, [directAnswers]);
 
-    // Sync displayName when user changes
+    /** Sync display name state when the user prop changes. */
     useEffect(() => {
         if (user) setDisplayName(user.displayName || '');
     }, [user]);
 
-    // Theme Logic
+    /** Apply and persist the selected theme. */
     useEffect(() => {
         const root = window.document.documentElement;
         if (theme === 'dark') {
@@ -40,7 +69,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
         } else if (theme === 'light') {
             root.classList.remove('dark');
         } else {
-            // System
             if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
                 root.classList.add('dark');
             } else {
@@ -50,6 +78,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
         localStorage.setItem('theme', theme);
     }, [theme]);
 
+    /** Save the updated display name to the Firebase Auth profile. */
     const handleSaveProfile = async () => {
         if (!user) return;
         setIsUpdating(true);
@@ -57,9 +86,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
             await updateProfile(user, {
                 displayName: displayName
             });
-            // Force reload or state update if needed, typically Auth listener handles it? 
-            // Auth listener might not trigger on simple profile update immediate reflection?
-            // Usually it does.
         } catch (e) {
             console.error(e);
             alert("Failed to update profile");
@@ -68,6 +94,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
         }
     };
 
+    /**
+     * Handle avatar file selection: reads the image as a base64 data URI
+     * and stores it in the Firebase Auth profile's `photoURL` field.
+     */
     const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file && user) {
@@ -75,8 +105,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
             reader.onload = async (event) => {
                 if (event.target?.result) {
                     try {
-                        // Use Base64 as photoURL (Not recommended for prod but allowed for < 100kb usually)
-                        // Verify size? 
                         await updateProfile(user, {
                             photoURL: event.target.result as string
                         });
@@ -95,7 +123,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
             <div className="bg-white dark:bg-zinc-950 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
 
-                {/* Header */}
+                {/* Modal header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
                     <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Settings</h2>
                     <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-full transition-colors">
@@ -104,7 +132,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
                 </div>
 
                 <div className="flex flex-1 overflow-hidden">
-                    {/* Sidebar Tabs */}
+                    {/* Tab navigation sidebar */}
                     <div className="w-48 bg-zinc-50 dark:bg-zinc-900/50 border-r border-zinc-200 dark:border-zinc-800 p-4 space-y-2">
                         <button
                             onClick={() => setActiveTab('general')}
@@ -136,12 +164,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
                         </button>
                     </div>
 
-                    {/* Content */}
+                    {/* Tab content area */}
                     <div className="flex-1 p-6 overflow-y-auto bg-white dark:bg-zinc-950">
                         {activeTab === 'general' && (
                             <div className="space-y-6">
                                 <div>
                                     <h3 className="text-lg font-medium text-zinc-900 dark:text-white mb-4">Chat Preferences</h3>
+                                    {/* Enter-to-Send toggle */}
                                     <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 mb-4">
                                         <div>
                                             <div className="font-medium text-zinc-900 dark:text-white">Press Enter to Send</div>
@@ -156,6 +185,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
                                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enterToSend ? 'translate-x-6' : 'translate-x-1'}`} />
                                         </button>
                                     </div>
+                                    {/* Direct Answers toggle */}
                                     <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
                                         <div>
                                             <div className="font-medium text-zinc-900 dark:text-white">Direct Answers</div>
@@ -176,6 +206,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
 
                         {activeTab === 'profile' && (
                             <div className="space-y-6">
+                                {/* Avatar and user info */}
                                 <div className="flex items-center gap-4">
                                     <div className="relative group cursor-pointer">
                                         <div className="size-20 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 text-2xl font-bold border-2 border-zinc-200 overflow-hidden">
@@ -192,6 +223,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
                                     </div>
                                 </div>
 
+                                {/* Display name editor */}
                                 <div>
                                     <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Display Name</label>
                                     <input

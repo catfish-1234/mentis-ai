@@ -1,6 +1,26 @@
+/**
+ * @module ConversationTimeline
+ *
+ * A fixed-position mini-map on the right side of the chat view that
+ * provides a visual overview of the conversation flow. Each message is
+ * represented as a colored node (indigo for user, violet for AI) along
+ * a vertical gradient line.
+ *
+ * Hovering a node shows a tooltip with a preview of the message content.
+ * Clicking a node smooth-scrolls the corresponding message into view.
+ *
+ * Only rendered when there are more than two messages in the conversation.
+ */
+
 import React, { useState } from 'react';
 import { Message, Role } from '../types';
 
+/**
+ * Props for the {@link ConversationTimeline} component.
+ *
+ * @property messages    - The full list of messages in the active chat.
+ * @property onNodeClick - Callback invoked with a message ID when a node is clicked.
+ */
 interface ConversationTimelineProps {
     messages: Message[];
     onNodeClick: (messageId: string) => void;
@@ -11,6 +31,7 @@ export const ConversationTimeline: React.FC<ConversationTimelineProps> = ({ mess
 
     if (messages.length === 0) return null;
 
+    /** Truncate message content to a 5-word preview for the hover tooltip. */
     const getPreviewText = (content: string) => {
         const words = content.split(/\s+/).slice(0, 5);
         return words.join(' ') + (content.split(/\s+/).length > 5 ? '...' : '');
@@ -18,12 +39,12 @@ export const ConversationTimeline: React.FC<ConversationTimelineProps> = ({ mess
 
     return (
         <div className="fixed right-4 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1 z-40">
-            {/* Timeline line */}
+            {/* Vertical gradient line connecting all nodes */}
             <div className="absolute inset-0 w-0.5 bg-gradient-to-b from-indigo-500/20 via-violet-500/20 to-indigo-500/20 left-1/2 -translate-x-1/2 rounded-full" />
 
             {messages.map((msg, idx) => (
                 <div key={msg.id} className="relative">
-                    {/* Node */}
+                    {/* Clickable node dot */}
                     <button
                         onClick={() => onNodeClick(msg.id)}
                         onMouseEnter={() => setHoveredId(msg.id)}
@@ -39,7 +60,7 @@ export const ConversationTimeline: React.FC<ConversationTimelineProps> = ({ mess
                         title={msg.role === Role.USER ? 'Your message' : 'AI response'}
                     />
 
-                    {/* Hover tooltip */}
+                    {/* Hover tooltip with message preview */}
                     {hoveredId === msg.id && (
                         <div className={`
                             absolute right-full mr-3 top-1/2 -translate-y-1/2

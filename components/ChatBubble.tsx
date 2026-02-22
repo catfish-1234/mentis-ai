@@ -1,26 +1,53 @@
+/**
+ * @module ChatBubble
+ *
+ * Renders a single chat message bubble. User messages appear right-aligned
+ * with a "YOU" badge; AI messages appear left-aligned with the MentisAI
+ * avatar and include action buttons (thumbs up/down, copy, regenerate).
+ *
+ * AI responses feature a typewriter animation for recently received
+ * messages (within a 3-second window), which is disabled on mobile
+ * for performance.
+ *
+ * Feedback (thumbs up/down) is persisted to a top-level `feedback`
+ * Firestore collection for analytics.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { Message, Role } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
 import { db, collection, addDoc, serverTimestamp } from '../firebase';
 
+/**
+ * Props for the {@link ChatBubble} component.
+ *
+ * @property message      - The message data to render.
+ * @property onEdit       - Callback to edit this message (user messages only).
+ * @property onRegenerate - Callback to regenerate this response (AI messages only).
+ */
 interface ChatBubbleProps {
   message: Message;
   onEdit?: () => void;
   onRegenerate?: () => void;
 }
 
+/**
+ * Renders a styled message bubble with role-specific layout, actions,
+ * and an optional typewriter reveal animation for AI responses.
+ */
 export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegenerate }) => {
   const isUser = message.role === Role.USER;
   const [feedback, setFeedback] = useState<'up' | 'down' | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Typewriter Logic
-  const isRecent = (new Date().getTime() - new Date(message.timestamp).getTime()) < 3000; // 3 seconds threshold
+  // Typewriter animation: only for AI messages received within the last 3 seconds, and not on mobile
+  const isRecent = (new Date().getTime() - new Date(message.timestamp).getTime()) < 3000;
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const shouldAnimate = !isUser && isRecent && !isMobile;
 
   const [displayedContent, setDisplayedContent] = useState(shouldAnimate ? '' : message.content);
 
+  /** Drive the typewriter effect by revealing one character at a time. */
   useEffect(() => {
     if (!shouldAnimate) {
       setDisplayedContent(message.content || '');
@@ -29,9 +56,8 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
 
     let currentIndex = 0;
     const text = message.content || '';
-    const speed = 15; // ms per char
+    const speed = 15;
 
-    // Reset displayed content when starting animation
     setDisplayedContent('');
 
     const intervalId = setInterval(() => {
@@ -46,6 +72,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
     return () => clearInterval(intervalId);
   }, [message.content, shouldAnimate]);
 
+  /** Copy the full message content to the clipboard. */
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(message.content);
@@ -56,12 +83,15 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
     }
   };
 
+  /**
+   * Submit user feedback (thumbs up/down) to the Firestore `feedback` collection.
+   * Prevents duplicate submissions for the same rating.
+   */
   const handleFeedback = async (rating: 'up' | 'down') => {
-    if (feedback === rating) return; // Prevent duplicate
+    if (feedback === rating) return;
     setFeedback(rating);
 
     try {
-      // Write to 'feedback' collection
       await addDoc(collection(db, 'feedback'), {
         messageId: message.id || 'unknown',
         content: message.content,
@@ -73,15 +103,14 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
     }
   };
 
+  /* ── User Message Bubble ── */
   if (isUser) {
     return (
       <div id={`msg-${message.id}`} className="flex justify-end gap-3 animate-fade-in-up group">
-        {/* User Bubble */}
         <div className="flex flex-col items-end max-w-[85%] sm:max-w-[75%] relative">
           <div className="bg-zinc-100 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 px-5 py-3.5 rounded-lg rounded-tr-sm shadow-sm">
             <p className="text-[15px] sm:text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
           </div>
-          {/* Attachment Rendering Stub if needed */}
           {message.attachment && (
             <div className="mt-1 text-xs text-zinc-400 flex items-center gap-1">
               <span className="material-symbols-outlined text-[14px]">attachment</span>
@@ -89,7 +118,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
             </div>
           )}
 
-          {/* Edit Button - Visible on Hover */}
+          {/* Edit button — revealed on hover */}
           {onEdit && (
             <button
               onClick={onEdit}
@@ -107,6 +136,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
     );
   }
 
+  /* ── AI Response Bubble ── */
   return (
     <div id={`msg-${message.id}`} className="flex justify-start gap-4 animate-fade-in-up">
       <div className="shrink-0 mt-1">
@@ -117,6 +147,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
           <div className="text-zinc-800 dark:text-zinc-200 text-[15px] sm:text-base leading-7">
             <MarkdownRenderer content={displayedContent} />
           </div>
+          {/* Action bar: feedback, copy */}
           <div className="flex items-center gap-2 mt-2 ml-0 pt-0">
             <button
               onClick={() => handleFeedback('up')}
@@ -142,6 +173,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
               {copied && <span className="text-xs font-medium">Copied</span>}
             </button>
           </div>
+          {/* Regenerate button — shown only on the latest AI response */}
           {onRegenerate && (
             <div className="flex justify-start mt-2">
               <button

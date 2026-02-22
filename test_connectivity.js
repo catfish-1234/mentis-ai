@@ -1,9 +1,22 @@
+/**
+ * @module test_connectivity
+ *
+ * Standalone Node.js diagnostic script for verifying Gemini API connectivity.
+ * Not part of the application runtime — used for debugging during development.
+ *
+ * Reads the API key directly from `.env.local`, then:
+ * 1. Lists all available Gemini models via the REST API.
+ * 2. Sends a test prompt to `gemini-1.5-flash`, `gemini-1.5-flash-001`, and `gemini-pro`.
+ * 3. Writes results to `debug_output.log`.
+ *
+ * Usage: `node test_connectivity.js`
+ *
+ * Depends on: `@google/generative-ai` package and a valid `.env.local` file.
+ */
 
 import fs from 'fs';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-// import * as dotenv from 'dotenv'; // Log disabled
 
-// Manually load env since we are running node directly
 const envFile = fs.readFileSync('.env.local', 'utf8');
 const apiKeyMatch = envFile.match(/VITE_GEMINI_API_KEY=(.*)/);
 const apiKey = apiKeyMatch ? apiKeyMatch[1].trim() : null;
@@ -19,6 +32,12 @@ if (!apiKey) {
 
 const genAI = new GoogleGenerativeAI(apiKey);
 
+/**
+ * Tests a specific Gemini model by sending a simple prompt.
+ *
+ * @param {string} modelName - The model identifier (e.g. "gemini-1.5-flash").
+ * @returns {Promise<string>} A success or error summary string.
+ */
 async function testModel(modelName) {
     try {
         console.log(`Testing ${modelName}...`);
@@ -29,7 +48,6 @@ async function testModel(modelName) {
         return `${modelName}: SUCCESS`;
     } catch (error) {
         console.error(`${modelName} FAILED:`);
-        // Log full object properties
         const errDetails = {
             message: error.message,
             status: error.status,
@@ -41,7 +59,11 @@ async function testModel(modelName) {
     }
 }
 
-
+/**
+ * Lists all available Gemini models via the REST API.
+ *
+ * @returns {Promise<string>} A summary of available models or an error message.
+ */
 async function listModels() {
     try {
         console.log("Listing models via raw fetch...");
@@ -61,6 +83,7 @@ async function listModels() {
     }
 }
 
+/** Run all connectivity tests and write results to `debug_output.log`. */
 async function run() {
     const results = [];
     results.push(await listModels());

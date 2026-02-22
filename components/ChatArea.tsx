@@ -1,7 +1,32 @@
+/**
+ * @module ChatArea
+ *
+ * Displays the main conversation thread between the user and the AI tutor.
+ * Handles three visual states:
+ * 1. Loading spinner while chat history is being fetched.
+ * 2. Empty-state welcome message when no messages exist.
+ * 3. Scrollable list of {@link ChatBubble} components with a thinking indicator.
+ *
+ * Auto-scrolls to the latest message whenever the message list changes
+ * or the AI is actively generating a response.
+ */
+
 import React, { useEffect, useRef } from 'react';
 import { Message, Role, Subject } from '../types';
 import { ChatBubble } from './ChatBubble';
 
+/**
+ * Props for the {@link ChatArea} component.
+ *
+ * @property loadingHistory  - Whether the initial message history is loading.
+ * @property messages        - The ordered list of chat messages to display.
+ * @property user            - Firebase Auth user object (used for greeting).
+ * @property activeSubject   - Current academic subject (shown in welcome text).
+ * @property handleEdit      - Callback when the user clicks "Edit" on their message.
+ * @property handleRegenerate - Callback to re-generate the last AI response.
+ * @property isThinking      - Whether the AI is currently processing a request.
+ * @property statusMessage   - Transient status text (e.g. "Analyzing image…").
+ */
 interface ChatAreaProps {
     loadingHistory: boolean;
     messages: Message[];
@@ -23,9 +48,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     isThinking,
     statusMessage
 }) => {
+    /** Invisible anchor element used to scroll to the bottom of the chat. */
     const bottomRef = useRef<HTMLDivElement>(null);
 
-    // Scroll to bottom
+    /** Smooth-scroll to the bottom whenever messages change or AI starts thinking. */
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isThinking]);
@@ -67,7 +93,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 ))
             )}
 
-            {/* Thinking Indicator */}
+            {/* AI thinking / status indicator */}
             {(isThinking || statusMessage) && (
                 <div className="flex justify-start gap-4 animate-pulse">
                     <div className="shrink-0 mt-1">

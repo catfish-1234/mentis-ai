@@ -1,5 +1,21 @@
+/**
+ * @module DeleteModal
+ *
+ * Confirmation dialog for deleting a chat session. Appears as a centered
+ * modal overlay with backdrop blur. Clicking the backdrop dismisses the
+ * modal without deleting.
+ */
+
 import React from 'react';
 
+/**
+ * Props for the {@link DeleteModal} component.
+ *
+ * @property isOpen   - Controls modal visibility.
+ * @property onClose  - Called when the user cancels or clicks the backdrop.
+ * @property onConfirm - Called when the user confirms the deletion.
+ * @property title    - Optional chat title to display in the confirmation message.
+ */
 interface DeleteModalProps {
     isOpen: boolean;
     onClose: () => void;
