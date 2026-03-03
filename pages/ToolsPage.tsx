@@ -79,7 +79,7 @@ correctIndex is 0-based. Make exactly 5 questions with 4 options each. No markdo
             }
         } catch (e) {
             console.error('Error generating quiz:', e);
-            alert('Failed to generate quiz. Please try again.');
+            alert('Failed to generate quiz. The AI produced an invalid response. Please try again.');
         } finally {
             setIsGenerating(false);
         }

@@ -18,6 +18,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptReady,
     const [error, setError] = useState<string | null>(null);
     const recognitionRef = useRef<any>(null);
     const timerRef = useRef<any>(null);
+    const isRecordingRef = useRef(false);
 
     useEffect(() => {
         return () => {
@@ -38,7 +39,17 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptReady,
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.lang = localStorage.getItem('preferredLanguage') || 'en-US';
+        recognition.lang = (() => {
+            const code = localStorage.getItem('preferredLanguage') || 'en';
+            // SpeechRecognition expects BCP47 format; map 2-letter codes
+            const localeMap: Record<string, string> = {
+                en: 'en-US', es: 'es-ES', fr: 'fr-FR', de: 'de-DE', pt: 'pt-BR',
+                it: 'it-IT', nl: 'nl-NL', ru: 'ru-RU', zh: 'zh-CN', ja: 'ja-JP',
+                ko: 'ko-KR', ar: 'ar-SA', hi: 'hi-IN', tr: 'tr-TR', pl: 'pl-PL',
+                vi: 'vi-VN', th: 'th-TH', id: 'id-ID', uk: 'uk-UA', sv: 'sv-SE',
+            };
+            return localeMap[code] || 'en-US';
+        })();
 
         let finalTranscript = '';
 
@@ -61,7 +72,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptReady,
         };
 
         recognition.onend = () => {
-            if (isRecording) {
+            if (isRecordingRef.current) {
                 try { recognition.start(); } catch (_) { }
             }
         };
@@ -69,6 +80,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptReady,
         recognitionRef.current = recognition;
         recognition.start();
         setIsRecording(true);
+        isRecordingRef.current = true;
         setDuration(0);
         setError(null);
         onRecordingStateChange?.(true);
@@ -88,6 +100,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptReady,
             timerRef.current = null;
         }
         setIsRecording(false);
+        isRecordingRef.current = false;
         onRecordingStateChange?.(false);
     }, [onRecordingStateChange]);
 
@@ -121,8 +134,8 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptReady,
                 <button
                     onClick={isRecording ? stopRecording : startRecording}
                     className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${isRecording
-                            ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20 animate-pulse'
-                            : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20'
+                        ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20 animate-pulse'
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20'
                         }`}
                 >
                     <span className="material-symbols-outlined text-[20px]">

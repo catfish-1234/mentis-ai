@@ -23,7 +23,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
     const [isUpdating, setIsUpdating] = useState(false);
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'system');
     const [enterToSend, setEnterToSend] = useState(localStorage.getItem('enterToSend') !== 'false');
-    const [directAnswers, setDirectAnswers] = useState(localStorage.getItem('directAnswers') === 'true');
     const [language, setLanguage] = useState<LanguageCode>(getStoredLanguage());
 
     useEffect(() => {
@@ -31,10 +30,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
         window.dispatchEvent(new Event('storage'));
     }, [enterToSend]);
 
-    useEffect(() => {
-        localStorage.setItem('directAnswers', String(directAnswers));
-        window.dispatchEvent(new Event('storage'));
-    }, [directAnswers]);
 
     useEffect(() => {
         if (user) setDisplayName(user.displayName || '');
@@ -76,18 +71,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
 
     const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file && user) {
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                if (event.target?.result) {
-                    try {
-                        await updateProfile(user, { photoURL: event.target.result as string });
-                    } catch (error) {
-                        console.error("Failed to update avatar", error);
-                    }
-                }
-            };
-            reader.readAsDataURL(file);
+        if (file) {
+            alert('Avatar upload requires Firebase Storage integration. This feature is coming soon.');
         }
     };
 
@@ -145,20 +130,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
                                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enterToSend ? 'translate-x-6' : 'translate-x-1'}`} />
                                         </button>
                                     </div>
-                                    <div className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
-                                        <div>
-                                            <div className="font-medium text-zinc-900 dark:text-white">Direct Answers</div>
-                                            <div className="text-sm text-zinc-500">
-                                                {directAnswers ? 'Get straight answers instantly' : 'Socratic mode: Guides you step-by-step'}
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={() => setDirectAnswers(!directAnswers)}
-                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${directAnswers ? 'bg-zinc-900' : 'bg-zinc-300 dark:bg-zinc-700'}`}
-                                        >
-                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${directAnswers ? 'translate-x-6' : 'translate-x-1'}`} />
-                                        </button>
-                                    </div>
+
                                 </div>
                             </div>
                         )}
@@ -231,8 +203,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
                                                 key={lang.code}
                                                 onClick={() => handleLanguageChange(lang.code)}
                                                 className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${language === lang.code
-                                                        ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-2 border-indigo-500 shadow-sm'
-                                                        : 'bg-zinc-50 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-2 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700'
+                                                    ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-2 border-indigo-500 shadow-sm'
+                                                    : 'bg-zinc-50 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-2 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700'
                                                     }`}
                                             >
                                                 {language === lang.code && (

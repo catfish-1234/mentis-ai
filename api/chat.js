@@ -32,6 +32,11 @@ function isRateLimited(uid, isAnonymous) {
     const now = Date.now();
     const limit = isAnonymous ? RATE_LIMIT_ANONYMOUS : RATE_LIMIT_AUTHENTICATED;
 
+    // Prevent unbounded memory growth in long-lived serverless instances
+    if (rateLimitMap.size > 10000) {
+        rateLimitMap.clear();
+    }
+
     if (!rateLimitMap.has(uid)) {
         rateLimitMap.set(uid, []);
     }
@@ -65,11 +70,11 @@ function validateInputs(body) {
         return 'Invalid subject';
     }
 
-    // Prompt must be a string within length limit
-    if (prompt !== undefined && prompt !== null) {
-        if (typeof prompt !== 'string') return 'Prompt must be a string';
-        if (prompt.length > MAX_PROMPT_LENGTH) return `Prompt exceeds ${MAX_PROMPT_LENGTH} characters`;
+    // Prompt is required and must be a non-empty string within length limit
+    if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+        return 'Prompt is required';
     }
+    if (prompt.length > MAX_PROMPT_LENGTH) return `Prompt exceeds ${MAX_PROMPT_LENGTH} characters`;
 
     // Boolean fields must be booleans
     if (reasoningMode !== undefined && typeof reasoningMode !== 'boolean') return 'reasoningMode must be a boolean';
@@ -219,7 +224,12 @@ MODE: Direct Answer
                 console.error('Gemini API Error:', data.error?.message);
                 throw new Error('AI service temporarily unavailable');
             }
-            return res.status(200).json({ text: data.candidates[0].content.parts[0].text });
+            const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!text) {
+                console.error('Gemini returned empty response:', JSON.stringify(data.candidates?.[0]?.finishReason));
+                throw new Error('AI service returned empty response');
+            }
+            return res.status(200).json({ text });
         } else {
             // Call Groq (Llama-3.3)
             const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -245,7 +255,12 @@ MODE: Direct Answer
                 console.error('Groq API Error:', data.error?.message);
                 throw new Error('AI service temporarily unavailable');
             }
-            return res.status(200).json({ text: data.choices[0].message.content });
+            const text = data.choices?.[0]?.message?.content;
+            if (!text) {
+                console.error('Groq returned empty response');
+                throw new Error('AI service returned empty response');
+            }
+            return res.status(200).json({ text });
         }
     } catch (error) {
         console.error('API Route Error:', error.message);

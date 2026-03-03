@@ -107,6 +107,7 @@ ${activeNote.content}`;
             }
         } catch (e) {
             console.error('Error creating flashcards:', e);
+            alert('Failed to generate flashcards. The AI produced an invalid response. Please try again.');
         } finally {
             setIsGenerating(false);
             setGeneratingStatus('');
@@ -141,6 +142,7 @@ ${activeNote.content}`;
             }
         } catch (e) {
             console.error('Error creating quiz:', e);
+            alert('Failed to generate quiz. The AI produced an invalid response. Please try again.');
         } finally {
             setIsGenerating(false);
             setGeneratingStatus('');

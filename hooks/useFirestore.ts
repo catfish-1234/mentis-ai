@@ -75,12 +75,14 @@ export const useChatList = () => {
   const deleteChat = useCallback(async (chatId: string) => {
     if (!userId) return;
     try {
-      // Cascade-delete all messages in the subcollection first
+      // Cascade-delete all messages in the subcollection first (chunked at 500 Firestore limit)
       const messagesRef = collection(db, `users/${userId}/chats/${chatId}/messages`);
       const snapshot = await getDocs(query(messagesRef));
-      if (snapshot.docs.length > 0) {
+      const BATCH_SIZE = 500;
+      for (let i = 0; i < snapshot.docs.length; i += BATCH_SIZE) {
+        const chunk = snapshot.docs.slice(i, i + BATCH_SIZE);
         const batch = writeBatch(db);
-        snapshot.docs.forEach((d) => batch.delete(d.ref));
+        chunk.forEach((d) => batch.delete(d.ref));
         await batch.commit();
       }
       // Then delete the chat document itself
@@ -181,7 +183,6 @@ export const useChat = (chatId: string | null) => {
     if (!userId || !targetChatId) return;
 
     const messagesRef = collection(db, `users/${userId}/chats/${targetChatId}/messages`);
-    const chatDocRef = doc(db, `users/${userId}/chats/${targetChatId}`);
 
     try {
       await addDoc(messagesRef, {
@@ -210,23 +211,32 @@ export const useChat = (chatId: string | null) => {
     if (!userId) return null;
 
     try {
+      // Generate a new doc reference first so we can use batch for atomicity
       const chatsRef = collection(db, `users/${userId}/chats`);
-      const chatDoc = await addDoc(chatsRef, {
+      const newChatRef = doc(chatsRef);
+
+      const batch = writeBatch(db);
+
+      // Chat document
+      batch.set(newChatRef, {
         subject,
         title: initialMessage.slice(0, 30) + (initialMessage.length > 30 ? '...' : ''),
         createdAt: serverTimestamp(),
         userId
       });
 
-      const messagesRef = collection(db, `users/${userId}/chats/${chatDoc.id}/messages`);
-      await addDoc(messagesRef, {
+      // First message document
+      const messagesRef = collection(db, `users/${userId}/chats/${newChatRef.id}/messages`);
+      const newMsgRef = doc(messagesRef);
+      batch.set(newMsgRef, {
         role,
         content: initialMessage,
         timestamp: serverTimestamp(),
         ...(attachment ? { attachment } : {})
       });
 
-      return chatDoc.id;
+      await batch.commit();
+      return newChatRef.id;
     } catch (error) {
       console.error("Error creating chat:", error);
       return null;
@@ -277,8 +287,8 @@ export const useChat = (chatId: string | null) => {
     try {
       const snapshot = await getDocs(q);
       const batch = writeBatch(db);
-      snapshot.docs.forEach((doc) => {
-        batch.delete(doc.ref);
+      snapshot.docs.forEach((msgDoc) => {
+        batch.delete(msgDoc.ref);
       });
       await batch.commit();
     } catch (error) {

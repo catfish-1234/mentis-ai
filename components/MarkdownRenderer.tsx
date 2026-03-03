@@ -63,7 +63,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content }) => {
     <div className="prose prose-zinc dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-zinc-800 prose-pre:text-zinc-100 w-full">
       <ReactMarkdown
         remarkPlugins={[remarkMath]}
-        rehypePlugins={[rehypeKatex, [rehypeSanitize, sanitizeSchema]]}
+        rehypePlugins={[[rehypeSanitize, sanitizeSchema], rehypeKatex]}
         components={{}}
       >
         {content || ''}

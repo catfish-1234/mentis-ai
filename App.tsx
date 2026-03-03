@@ -285,7 +285,7 @@ function AppContent() {
       setAttachment(undefined);
       if (fileInputRef.current) fileInputRef.current.value = '';
 
-      if (currentChatId) {
+      if (currentChatId && response && !response.startsWith('Error:')) {
         await addMessage(response, Role.MODEL, undefined, currentChatId);
       }
     } catch (error) {
