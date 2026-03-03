@@ -83,9 +83,9 @@ MODE: Direct Answer
                 { role: "system", content: systemInstruction },
                 ...previousMessages.map(msg => ({
                     role: msg.role === Role.USER ? "user" : "assistant",
-                    content: msg.content + (msg.attachment?.type === 'text' ? `\n[File]: ${msg.attachment.content}` : '')
+                    content: msg.content + (msg.attachment?.type === 'text' ? `\n\n[START FILE CONTENT]\n${msg.attachment.content}\n[END FILE CONTENT]\n` : '')
                 })),
-                { role: "user", content: text + (attachment?.type === 'text' ? `\n[File]: ${attachment.content}` : '') }
+                { role: "user", content: text + (attachment?.type === 'text' ? `\n\n[START FILE CONTENT]\n${attachment.content}\n[END FILE CONTENT]\n` : '') }
             ];
 
             const token = await auth.currentUser?.getIdToken();

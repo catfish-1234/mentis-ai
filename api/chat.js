@@ -101,7 +101,7 @@ function validateInputs(body) {
     // langInstruction: only allow the expected format pattern
     if (langInstruction && typeof langInstruction === 'string') {
         // Must match the pattern from i18n.ts or be empty
-        const langPattern = /^\n\nIMPORTANT: You MUST respond entirely in .+ \([a-z]{2}\)\. All explanations, examples, and text should be in .+\.$/;
+        const langPattern = /^\n\nIMPORTANT: You MUST respond entirely in [\w\s+-]+ \([a-z]{2}\)\. All explanations, examples, and text should be in [\w\s+-]+\.$/i;
         if (!langPattern.test(langInstruction)) {
             return 'Invalid language instruction';
         }
@@ -221,7 +221,7 @@ MODE: Direct Answer
 
             const data = await response.json();
             if (!response.ok) {
-                console.error('Gemini API Error:', data.error?.message);
+                console.error('Gemini API Error');
                 throw new Error('AI service temporarily unavailable');
             }
             const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -252,7 +252,7 @@ MODE: Direct Answer
 
             const data = await response.json();
             if (!response.ok) {
-                console.error('Groq API Error:', data.error?.message);
+                console.error('Groq API Error');
                 throw new Error('AI service temporarily unavailable');
             }
             const text = data.choices?.[0]?.message?.content;

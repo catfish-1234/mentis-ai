@@ -24,6 +24,7 @@ import { DeleteModal } from './components/DeleteModal';
 import { ToolsPage } from './pages/ToolsPage';
 import { NotesHubPage } from './pages/NotesHubPage';
 import { signInWithPopup, signOut, auth, GoogleAuthProvider, onAuthStateChanged, signInAnonymously } from './firebase';
+import { linkWithPopup, AuthErrorCodes } from 'firebase/auth';
 import { HelmetProvider } from 'react-helmet-async';
 import { SEO } from './components/SEO';
 
@@ -41,6 +42,7 @@ function AppContent() {
   const [enterToSend, setEnterToSend] = useState(localStorage.getItem('enterToSend') !== 'false');
 
   const [sessionPrompts, setSessionPrompts] = useState<string[]>([]);
+  const [isSubmitLocked, setIsSubmitLocked] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -121,7 +123,20 @@ function AppContent() {
 
   const handleSignIn = async () => {
     try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
+      if (auth.currentUser && auth.currentUser.isAnonymous) {
+        try {
+          await linkWithPopup(auth.currentUser, new GoogleAuthProvider());
+          return;
+        } catch (linkError: any) {
+          if (linkError.code === AuthErrorCodes.CREDENTIAL_ALREADY_IN_USE) {
+            await signInWithPopup(auth, new GoogleAuthProvider());
+          } else {
+            throw linkError;
+          }
+        }
+      } else {
+        await signInWithPopup(auth, new GoogleAuthProvider());
+      }
     } catch (error) {
       console.error("Sign in failed", error);
     }
@@ -252,7 +267,10 @@ function AppContent() {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!input.trim() || isThinking || !userId) return;
+    if (!input.trim() || isThinking || !userId || isSubmitLocked) return;
+
+    setIsSubmitLocked(true);
+    setTimeout(() => setIsSubmitLocked(false), 2000);
 
     const userText = input.trim();
     setInput('');
@@ -279,7 +297,7 @@ function AppContent() {
         setSessionPrompts(prev => [...prev, userText]);
       }
 
-      const historyToSend = user?.isAnonymous ? [] : messages;
+      const historyToSend = user?.isAnonymous ? [] : messages.slice(-50);
       const response = await sendMessage(userText, activeSubject, historyToSend, attachment, socraticMode, reasoningMode);
 
       setAttachment(undefined);

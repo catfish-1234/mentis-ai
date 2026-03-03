@@ -83,6 +83,7 @@ export const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ cards, title, onCl
     }, [cards]);
 
     const exportToQuizlet = useCallback(() => {
+        if (!window.confirm("Export these flashcards to your clipboard in Quizlet TSV format?")) return;
         const tsv = cards.map(c => `${c.front}\t${c.back}`).join('\n');
         navigator.clipboard.writeText(tsv).then(() => {
             alert('Copied to clipboard! Paste into Quizlet import.');
@@ -197,8 +198,8 @@ export const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ cards, title, onCl
                     <button
                         onClick={(e) => { e.stopPropagation(); markNeedReview(); }}
                         className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${needReview.has(currentCardIndex)
-                                ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 ring-2 ring-orange-500/30'
-                                : 'text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20'
+                            ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 ring-2 ring-orange-500/30'
+                            : 'text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20'
                             }`}
                     >
                         <span className="material-symbols-outlined text-[18px]">flag</span>
@@ -210,8 +211,8 @@ export const FlashcardDeck: React.FC<FlashcardDeckProps> = ({ cards, title, onCl
                     <button
                         onClick={(e) => { e.stopPropagation(); markKnown(); }}
                         className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${known.has(currentCardIndex)
-                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 ring-2 ring-emerald-500/30'
-                                : 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 ring-2 ring-emerald-500/30'
+                            : 'text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
                             }`}
                     >
                         <span className="material-symbols-outlined text-[18px]">check_circle</span>

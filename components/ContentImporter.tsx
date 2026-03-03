@@ -22,6 +22,11 @@ export const ContentImporter: React.FC<ContentImporterProps> = ({ onContentReady
         const file = e.target.files?.[0];
         if (!file) return;
 
+        if (file.size > 2 * 1024 * 1024) {
+            setError('File size exceeds the 2MB limit. Please upload a smaller PDF.');
+            return;
+        }
+
         setIsProcessing(true);
         setError(null);
         setFileName(file.name);
@@ -82,7 +87,8 @@ export const ContentImporter: React.FC<ContentImporterProps> = ({ onContentReady
     const handleYoutubeSubmit = useCallback(() => {
         if (!youtubeUrl.trim()) return;
 
-        const videoIdMatch = youtubeUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+        // Requires exact domain match to prevent SSRF or misleading AI
+        const videoIdMatch = youtubeUrl.match(/^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:\S+)?$/);
         if (!videoIdMatch) {
             setError('Please enter a valid YouTube URL');
             return;
@@ -122,8 +128,8 @@ export const ContentImporter: React.FC<ContentImporterProps> = ({ onContentReady
                         key={tab.id}
                         onClick={() => { setActiveTab(tab.id); setError(null); }}
                         className={`flex-1 flex items-center justify-center gap-2 px-4 py-3.5 text-sm font-medium transition-colors ${activeTab === tab.id
-                                ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/10'
-                                : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
+                            ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/10'
+                            : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
                             }`}
                     >
                         <span className="material-symbols-outlined text-[20px]">{tab.icon}</span>
