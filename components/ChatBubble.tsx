@@ -8,7 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { Message, Role } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
-import { db, collection, addDoc, serverTimestamp } from '../firebase';
+import { db, collection, addDoc, serverTimestamp, auth } from '../firebase';
 
 interface ChatBubbleProps {
   message: Message;
@@ -87,12 +87,14 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onEdit, onRegen
   };
 
   const handleFeedback = async (rating: 'up' | 'down') => {
-    if (feedback === rating) return;
+    if (feedback) return; // Prevent duplicate feedback submissions
     setFeedback(rating);
     try {
+      const userId = auth.currentUser?.uid;
+      if (!userId) return;
       await addDoc(collection(db, 'feedback'), {
         messageId: message.id || 'unknown',
-        content: message.content,
+        userId,
         rating,
         timestamp: serverTimestamp()
       });

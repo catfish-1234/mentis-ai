@@ -31,7 +31,12 @@ export const SUPPORTED_LANGUAGES = [
 export type LanguageCode = typeof SUPPORTED_LANGUAGES[number]['code'];
 
 export function getStoredLanguage(): LanguageCode {
-    return (localStorage.getItem('preferredLanguage') as LanguageCode) || 'en';
+    const stored = localStorage.getItem('preferredLanguage');
+    const validCodes = SUPPORTED_LANGUAGES.map(l => l.code) as readonly string[];
+    if (stored && validCodes.includes(stored)) {
+        return stored as LanguageCode;
+    }
+    return 'en';
 }
 
 export function setStoredLanguage(code: LanguageCode): void {

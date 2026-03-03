@@ -75,6 +75,15 @@ export const useChatList = () => {
   const deleteChat = useCallback(async (chatId: string) => {
     if (!userId) return;
     try {
+      // Cascade-delete all messages in the subcollection first
+      const messagesRef = collection(db, `users/${userId}/chats/${chatId}/messages`);
+      const snapshot = await getDocs(query(messagesRef));
+      if (snapshot.docs.length > 0) {
+        const batch = writeBatch(db);
+        snapshot.docs.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+      }
+      // Then delete the chat document itself
       await deleteDoc(doc(db, `users/${userId}/chats/${chatId}`));
     } catch (error) {
       console.error("Error deleting chat:", error);
